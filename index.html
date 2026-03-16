@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sabotage — Marble Physics Game</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+  <!-- LOBBY SCREEN -->
+  <div id="lobby" class="screen active">
+    <h1>SABOTAGE</h1>
+    <p class="subtitle">A 2-player marble physics game</p>
+    <div class="rules-summary">
+      <p>Take turns as <strong>Builder</strong> and <strong>Saboteur</strong>.</p>
+      <p>The Builder draws lines to route marbles into their bucket.</p>
+      <p>The Saboteur watches the simulation, infers hidden edits, and places items to intercept.</p>
+    </div>
+    <div class="player-inputs">
+      <div class="player-input">
+        <label for="p1name">Player 1 (Blue)</label>
+        <input type="text" id="p1name" placeholder="Player 1" maxlength="12">
+      </div>
+      <div class="player-input">
+        <label for="p2name">Player 2 (Red)</label>
+        <input type="text" id="p2name" placeholder="Player 2" maxlength="12">
+      </div>
+    </div>
+    <button id="startBtn" class="btn-primary">Start Game</button>
+  </div>
+
+  <!-- ROUND START SPLASH -->
+  <div id="roundStart" class="screen overlay">
+    <h2 id="roundTitle">Round 1</h2>
+    <div class="role-assignments">
+      <div class="role-card p1">
+        <span class="player-name" id="roundP1Name">P1</span>
+        <span class="role-label" id="roundP1Role">Builder</span>
+      </div>
+      <div class="role-card p2">
+        <span class="player-name" id="roundP2Name">P2</span>
+        <span class="role-label" id="roundP2Role">Saboteur</span>
+      </div>
+    </div>
+    <button id="roundStartBtn" class="btn-primary">Begin Round</button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen">
+    <!-- Top HUD -->
+    <div id="hud">
+      <div class="hud-left">
+        <span id="hudP1Name" class="p1-color">P1</span>
+        <span id="hudP1Role" class="role-badge">[Builder]</span>
+        <span>Score: <strong id="hudP1Score">0</strong></span>
+      </div>
+      <div class="hud-center">
+        <span id="hudRound">Round 1</span>
+        <span id="hudPhase">Builder Phase</span>
+      </div>
+      <div class="hud-right">
+        <span>Score: <strong id="hudP2Score">0</strong></span>
+        <span id="hudP2Role" class="role-badge">[Saboteur]</span>
+        <span id="hudP2Name" class="p2-color">P2</span>
+      </div>
+    </div>
+
+    <!-- Ink Bar -->
+    <div id="inkBar">
+      <span id="inkLabel">Ink:</span>
+      <div class="ink-track">
+        <div class="ink-fill" id="inkFill"></div>
+      </div>
+      <span id="inkValue">100</span>
+    </div>
+
+    <!-- Canvas -->
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- Builder Controls -->
+    <div id="builderControls" class="controls-panel">
+      <button id="simBtn" class="btn-secondary">Simulate (<span id="simCount">3</span> left)</button>
+      <button id="eraseModeBtn" class="btn-secondary">Erase Mode</button>
+      <button id="readyBtn" class="btn-primary">Ready</button>
+    </div>
+
+    <!-- Saboteur Controls -->
+    <div id="saboteurControls" class="controls-panel" style="display:none">
+      <div class="item-shop">
+        <button class="item-btn" data-item="fan">Fan (<span class="item-cost">2</span>pt)</button>
+        <button class="item-btn" data-item="bumper">Bumper (<span class="item-cost">2</span>pt)</button>
+        <button class="item-btn" data-item="magnet">Magnet (<span class="item-cost">3</span>pt)</button>
+      </div>
+      <button id="sabSimBtn" class="btn-secondary">Watch Simulation</button>
+      <button id="sabDrawBtn" class="btn-secondary">Draw Lines</button>
+      <button id="sabReadyBtn" class="btn-primary">Ready</button>
+    </div>
+
+    <!-- Drop Phase overlay -->
+    <div id="dropOverlay" class="phase-overlay" style="display:none">
+      <span>Dropping...</span>
+    </div>
+  </div>
+
+  <!-- SCORE REVEAL -->
+  <div id="scoreReveal" class="screen overlay" style="display:none">
+    <h2>Score!</h2>
+    <div id="scoreDetails"></div>
+    <div class="score-totals">
+      <span id="revealP1"></span>
+      <span id="revealP2"></span>
+    </div>
+    <button id="scoreNextBtn" class="btn-primary">Continue</button>
+  </div>
+
+  <!-- SHOP SCREEN -->
+  <div id="shopScreen" class="screen overlay" style="display:none">
+    <h2>Shop</h2>
+    <div class="shop-panels">
+      <div class="shop-panel p1-panel">
+        <h3 id="shopP1Name">P1</h3>
+        <p>Points: <strong id="shopP1Points">0</strong></p>
+        <div id="shopP1Items" class="shop-items"></div>
+      </div>
+      <div class="shop-panel p2-panel">
+        <h3 id="shopP2Name">P2</h3>
+        <p>Points: <strong id="shopP2Points">0</strong></p>
+        <div id="shopP2Items" class="shop-items"></div>
+      </div>
+    </div>
+    <button id="shopDoneBtn" class="btn-primary">Done Shopping</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameOver" class="screen overlay" style="display:none">
+    <h2 id="winnerText">Player 1 Wins!</h2>
+    <div class="final-scores">
+      <span id="finalP1"></span>
+      <span id="finalP2"></span>
+    </div>
+    <button id="playAgainBtn" class="btn-primary">Play Again</button>
+  </div>
+
+  <!-- Fan direction picker (shown on fan placement) -->
+  <div id="fanDirectionPicker" style="display:none">
+    <canvas id="fanDirCanvas" width="100" height="100"></canvas>
+  </div>
+
+  <script src="constants.js"></script>
+  <script src="physics.js"></script>
+  <script src="items.js"></script>
+  <script src="drawing.js"></script>
+  <script src="renderer.js"></script>
+  <script src="simulation.js"></script>
+  <script src="scoring.js"></script>
+  <script src="ui.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
