@@ -115,7 +115,8 @@ const Renderer = (() => {
         if (item.owner !== Game.getCurrentSaboteur()) continue;
       }
 
-      const color = item.owner === 1 ? `rgba(68, 136, 255, ${alpha})` : `rgba(255, 68, 68, ${alpha})`;
+      const rgb = item.owner === 1 ? '68, 136, 255' : '255, 68, 68';
+      const color = `rgba(${rgb}, ${alpha})`;
 
       if (item.type === 'bumper') {
         ctx.beginPath();
@@ -123,12 +124,12 @@ const Renderer = (() => {
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         ctx.stroke();
-        ctx.fillStyle = color.replace(alpha + ')', Math.min(alpha, 0.3) + ')');
+        ctx.fillStyle = `rgba(${rgb}, ${Math.min(alpha, 0.3)})`;
         ctx.fill();
       } else if (item.type === 'fan') {
         drawFan(item, color, alpha);
       } else if (item.type === 'magnet') {
-        drawMagnet(item, color, alpha);
+        drawMagnet(item, color, alpha, rgb);
       }
     }
   }
@@ -166,7 +167,7 @@ const Renderer = (() => {
     ctx.restore();
   }
 
-  function drawMagnet(item, color, alpha) {
+  function drawMagnet(item, color, alpha, rgb) {
     // Draw magnet as a circle with radius indicator
     ctx.beginPath();
     ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
@@ -176,7 +177,7 @@ const Renderer = (() => {
     // Range circle
     ctx.beginPath();
     ctx.arc(item.x, item.y, CONFIG.items.magnet.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = color.replace(alpha + ')', Math.min(alpha, 0.15) + ')');
+    ctx.strokeStyle = `rgba(${rgb}, ${Math.min(alpha, 0.15)})`;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.stroke();

@@ -11,7 +11,7 @@ const CONFIG = {
   ink: {
     builderBudget: 100,
     saboteurBudget: 40,
-    costPerPixel: 1,
+    costPerPixel: 0.1,
     saboteurLineMultiplier: 2.5,
     builderItemMultiplier: 2,
     proximityMultiplier: [

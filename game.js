@@ -18,6 +18,7 @@ const Game = (() => {
   // Shop purchases queued for next round
   let bonusInk = { 1: 0, 2: 0 };
   let purchasedItems = { 1: [], 2: [] };
+  let sabFreeItems = [];
 
   function startGame(name1, name2) {
     p1Name = name1;
@@ -60,6 +61,15 @@ const Game = (() => {
     simCount = 3;
 
     Physics.resetMarbles();
+
+    // Grant purchased items as free placements
+    const builderItems = purchasedItems[builderPlayer] || [];
+    const sabPlayer = builderPlayer === 1 ? 2 : 1;
+    const sabItems = purchasedItems[sabPlayer] || [];
+    Drawing.setFreeItems(builderItems);
+    sabFreeItems = sabItems;
+    purchasedItems[builderPlayer] = [];
+    purchasedItems[sabPlayer] = [];
 
     const inkBudget = CONFIG.ink.builderBudget + bonusInk[builderPlayer];
     bonusInk[builderPlayer] = 0;
@@ -118,6 +128,8 @@ const Game = (() => {
     bonusInk[sabPlayer] = 0;
 
     Drawing.enable(sabPlayer, round, 'saboteur', inkBudget);
+    Drawing.setFreeItems(sabFreeItems);
+    sabFreeItems = [];
     UI.showGameScreen('saboteur', builderPlayer, round, p1Score, p2Score);
     UI.updateInkBar(inkBudget, inkBudget);
     UI.updateItemCosts(sabPlayer);
@@ -206,9 +218,17 @@ const Game = (() => {
     requestAnimationFrame(dropTick);
   }
 
+  function stopRenderLoop() {
+    if (animFrame) {
+      cancelAnimationFrame(animFrame);
+      animFrame = null;
+    }
+  }
+
   function endDropPhase() {
     dropPhaseActive = false;
     state = 'SCORE_REVEAL';
+    stopRenderLoop();
 
     const result = Scoring.calculateRoundScores();
     p1Score += result.p1Points;

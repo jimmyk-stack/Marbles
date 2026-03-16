@@ -18,6 +18,7 @@ const Drawing = (() => {
   let placingFan = false;
   let fanPlaceX = 0, fanPlaceY = 0;
   let mouseX = 0, mouseY = 0;
+  let freeItems = []; // items purchased from shop (placed for free)
 
   function init(canvasEl) {
     canvas = canvasEl;
@@ -55,6 +56,10 @@ const Drawing = (() => {
   function selectItem(type) {
     selectedItem = type;
     eraseMode = false;
+  }
+
+  function setFreeItems(items) {
+    freeItems = items ? [...items] : [];
   }
 
   function getInk() { return inkRemaining; }
@@ -117,7 +122,7 @@ const Drawing = (() => {
     if (placingFan) {
       // Set fan direction based on click relative to fan position
       const angle = Math.atan2(y - fanPlaceY, x - fanPlaceX);
-      Items.placeItem('fan', fanPlaceX, fanPlaceY, currentPlayer, currentRound, angle);
+      placeAndDeductItem('fan', fanPlaceX, fanPlaceY, angle);
       placingFan = false;
       selectedItem = null;
       return;
@@ -151,6 +156,16 @@ const Drawing = (() => {
       // Place item
       if (isInNoDrawZone(x, y)) return;
 
+      // Check affordability (free items bypass cost)
+      const hasFree = freeItems.indexOf(selectedItem) >= 0;
+      if (!hasFree) {
+        const itemCost = CONFIG.items[selectedItem].cost;
+        const cost = currentRole === 'builder'
+          ? itemCost * CONFIG.ink.builderItemMultiplier
+          : itemCost;
+        if (inkRemaining < cost) return;
+      }
+
       if (selectedItem === 'fan') {
         fanPlaceX = x;
         fanPlaceY = y;
@@ -159,7 +174,7 @@ const Drawing = (() => {
         return;
       }
 
-      Items.placeItem(selectedItem, x, y, currentPlayer, currentRound);
+      placeAndDeductItem(selectedItem, x, y);
       selectedItem = null;
       return;
     }
@@ -212,6 +227,26 @@ const Drawing = (() => {
     }
   }
 
+  function placeAndDeductItem(type, x, y, direction) {
+    // Check if we have a free item from shop
+    const freeIdx = freeItems.indexOf(type);
+    if (freeIdx >= 0) {
+      freeItems.splice(freeIdx, 1);
+      Items.placeItem(type, x, y, currentPlayer, currentRound, direction);
+      return;
+    }
+
+    const baseCost = CONFIG.items[type].cost;
+    const cost = currentRole === 'builder'
+      ? baseCost * CONFIG.ink.builderItemMultiplier
+      : baseCost;
+    if (cost > inkRemaining) return;
+
+    Items.placeItem(type, x, y, currentPlayer, currentRound, direction);
+    inkRemaining -= cost;
+    if (onInkChanged) onInkChanged(inkRemaining, maxInk);
+  }
+
   function distToSegment(px, py, x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -242,13 +277,11 @@ const Drawing = (() => {
 
   return {
     init, enable, disable,
-    setEraseMode, selectItem,
+    setEraseMode, selectItem, setFreeItems,
     getInk, getMaxInk,
     getPreviewState,
     calculateInkCost,
     isInNoDrawZone,
-    _mouseX: 0,
-    _mouseY: 0,
     set onInkChanged(fn) { onInkChanged = fn; },
     get isPlacingFan() { return placingFan; },
   };

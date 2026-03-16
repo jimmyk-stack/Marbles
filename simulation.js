@@ -13,6 +13,7 @@ const Simulation = (() => {
   let stuckTimers = { m1: 0, m2: 0 };
   let lastTime = 0;
   let totalElapsed = 0;
+  let simItems = [];
   const MAX_SIM_TIME = 15000; // 15 seconds max
 
   function startSimulation(mode, callback) {
@@ -34,6 +35,7 @@ const Simulation = (() => {
       : Items.getItems().filter(i => i.round < Game.getRound()); // Saboteur sees old items only in simulation
 
     Items.addToSimWorld(sim.world, itemsToInclude);
+    simItems = itemsToInclude;
 
     running = true;
     lastTime = performance.now();
@@ -51,20 +53,17 @@ const Simulation = (() => {
     // Step simulation
     Engine.update(simEngine, 1000 / 60);
 
-    // Apply item forces
-    const items = Items.getItems();
-    Items.applyForcesInSim(items, simMarble1);
-    Items.applyForcesInSim(items, simMarble2);
+    // Apply item forces (only from items included in this simulation)
+    Items.applyForcesInSim(simItems, simMarble1);
+    Items.applyForcesInSim(simItems, simMarble2);
 
-    // Record trail
-    trail.push({
-      x: simMarble1.position.x, y: simMarble1.position.y,
-      player: 1, time: Date.now()
-    });
-    trail.push({
-      x: simMarble2.position.x, y: simMarble2.position.y,
-      player: 2, time: Date.now()
-    });
+    // Record trail (cap at 600 entries to prevent memory bloat)
+    const now2 = Date.now();
+    trail.push({ x: simMarble1.position.x, y: simMarble1.position.y, player: 1, time: now2 });
+    trail.push({ x: simMarble2.position.x, y: simMarble2.position.y, player: 2, time: now2 });
+    if (trail.length > 600) {
+      trail.splice(0, trail.length - 600);
+    }
 
     // Check if marbles are settled or out of bounds
     const v1 = Math.sqrt(simMarble1.velocity.x ** 2 + simMarble1.velocity.y ** 2);

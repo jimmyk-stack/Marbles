@@ -246,13 +246,13 @@ const Physics = (() => {
       w * CONFIG.marbles.p1Start.x,
       h * CONFIG.marbles.p1Start.y,
       CONFIG.marbles.radius,
-      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, label: 'marble-p1' }
+      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, frictionAir: 0.01, label: 'marble-p1' }
     );
     const simMarble2 = Bodies.circle(
       w * CONFIG.marbles.p2Start.x,
       h * CONFIG.marbles.p2Start.y,
       CONFIG.marbles.radius,
-      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, label: 'marble-p2' }
+      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, frictionAir: 0.01, label: 'marble-p2' }
     );
 
     World.add(simWorld, [simMarble1, simMarble2]);

@@ -98,6 +98,11 @@ const UI = (() => {
     document.getElementById('hudP2Score').textContent = p2Score;
     document.getElementById('hudRound').textContent = `Round ${round}`;
 
+    // Reset toggle states between phases
+    document.getElementById('eraseModeBtn').classList.remove('active');
+    document.getElementById('sabDrawBtn').classList.remove('active');
+    document.querySelectorAll('.item-btn').forEach(b => b.classList.remove('selected'));
+
     if (phase === 'builder') {
       document.getElementById('hudPhase').textContent = `${builderPlayer === 1 ? p1Name : p2Name} — Builder Phase`;
       document.getElementById('hudP1Role').textContent = builderPlayer === 1 ? '[Builder]' : '[Saboteur]';
