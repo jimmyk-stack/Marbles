@@ -15,10 +15,20 @@ const Game = (() => {
   let lastDropTime = 0;
   let totalDropTime = 0;
 
-  // Shop purchases queued for next round
+  // Shop purchases queued for next round (ink only)
   let bonusInk = { 1: 0, 2: 0 };
-  let purchasedItems = { 1: [], 2: [] };
-  let sabFreeItems = [];
+
+  function getPlayerScore(player) {
+    return player === 1 ? p1Score : p2Score;
+  }
+
+  function deductPlayerScore(player, cost) {
+    if (player === 1) p1Score -= cost;
+    else p2Score -= cost;
+    // Update HUD scores live
+    document.getElementById('hudP1Score').textContent = p1Score;
+    document.getElementById('hudP2Score').textContent = p2Score;
+  }
 
   function startGame(name1, name2) {
     p1Name = name1;
@@ -62,22 +72,18 @@ const Game = (() => {
 
     Physics.resetMarbles();
 
-    // Grant purchased items as free placements
-    const builderItems = purchasedItems[builderPlayer] || [];
-    const sabPlayer = builderPlayer === 1 ? 2 : 1;
-    const sabItems = purchasedItems[sabPlayer] || [];
-    Drawing.setFreeItems(builderItems);
-    sabFreeItems = sabItems;
-    purchasedItems[builderPlayer] = [];
-    purchasedItems[sabPlayer] = [];
-
     const inkBudget = CONFIG.ink.builderBudget + bonusInk[builderPlayer];
     bonusInk[builderPlayer] = 0;
 
     Drawing.enable(builderPlayer, round, 'builder', inkBudget);
+    Drawing.setPointsCallbacks(
+      () => getPlayerScore(builderPlayer),
+      (cost) => deductPlayerScore(builderPlayer, cost)
+    );
     UI.showGameScreen('builder', builderPlayer, round, p1Score, p2Score);
     UI.updateInkBar(inkBudget, inkBudget);
     UI.updateSimCount(simCount);
+    UI.updateItemCosts(builderPlayer, 'builder');
 
     startRenderLoop();
   }
@@ -128,11 +134,13 @@ const Game = (() => {
     bonusInk[sabPlayer] = 0;
 
     Drawing.enable(sabPlayer, round, 'saboteur', inkBudget);
-    Drawing.setFreeItems(sabFreeItems);
-    sabFreeItems = [];
+    Drawing.setPointsCallbacks(
+      () => getPlayerScore(sabPlayer),
+      (cost) => deductPlayerScore(sabPlayer, cost)
+    );
     UI.showGameScreen('saboteur', builderPlayer, round, p1Score, p2Score);
     UI.updateInkBar(inkBudget, inkBudget);
-    UI.updateItemCosts(sabPlayer);
+    UI.updateItemCosts(sabPlayer, 'saboteur');
   }
 
   function runSaboteurSimulation() {
@@ -177,7 +185,6 @@ const Game = (() => {
       const v1 = Math.sqrt(m1.velocity.x ** 2 + m1.velocity.y ** 2);
       const v2 = Math.sqrt(m2.velocity.x ** 2 + m2.velocity.y ** 2);
 
-      // Use a generous threshold — micro-bouncing can keep velocity oscillating
       const settleThreshold = 0.5;
 
       if (v1 < settleThreshold) {
@@ -255,21 +262,18 @@ const Game = (() => {
     if (player === 1) p1Score -= cost;
     else p2Score -= cost;
 
+    // Shop only sells ink refills
     if (itemType === 'inkSmall') {
       bonusInk[player] += 50;
     } else if (itemType === 'inkLarge') {
       bonusInk[player] += 150;
-    } else {
-      purchasedItems[player].push(itemType);
     }
 
-    // Update shop display
     document.getElementById('shopP1Points').textContent = p1Score;
     document.getElementById('shopP2Points').textContent = p2Score;
   }
 
   function shopDone() {
-    // Swap roles
     builderPlayer = builderPlayer === 1 ? 2 : 1;
     round++;
 
@@ -283,7 +287,6 @@ const Game = (() => {
 
   function getRound() { return round; }
 
-  // Initialize UI on load
   window.addEventListener('DOMContentLoaded', () => {
     UI.init();
   });

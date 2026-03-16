@@ -13,12 +13,15 @@ const Drawing = (() => {
   let onInkChanged = null;
   let enabled = false;
 
-  // For saboteur item placement
+  // For item placement
   let selectedItem = null;
   let placingFan = false;
   let fanPlaceX = 0, fanPlaceY = 0;
   let mouseX = 0, mouseY = 0;
-  let freeItems = []; // items purchased from shop (placed for free)
+
+  // Points-based item economy — callbacks set by Game
+  let getPoints = () => 0;
+  let spendPoints = () => {};
 
   function init(canvasEl) {
     canvas = canvasEl;
@@ -58,19 +61,24 @@ const Drawing = (() => {
     eraseMode = false;
   }
 
-  function setFreeItems(items) {
-    freeItems = items ? [...items] : [];
+  function setPointsCallbacks(getFn, spendFn) {
+    getPoints = getFn;
+    spendPoints = spendFn;
   }
 
   function getInk() { return inkRemaining; }
   function getMaxInk() { return maxInk; }
 
+  function getItemPointCost(type) {
+    const baseCost = CONFIG.items[type].cost;
+    return currentRole === 'builder'
+      ? baseCost * CONFIG.ink.builderItemMultiplier
+      : baseCost;
+  }
+
   function getProximityMultiplier(y) {
     const h = CONFIG.canvas.height;
-    const depthFraction = 1 - (y / h); // 0 = bottom, 1 = top
-    // Actually we want distance from bottom: y/h is fraction from top
-    // depthFraction from bottom = y / h → higher y = further from bottom
-    // No, y increases downward. So y=0 is top, y=h is bottom.
+    // y increases downward. y=0 is top, y=h is bottom.
     // Distance from bottom as fraction = (h - y) / h
     const distFromBottom = (h - y) / h;
 
@@ -100,10 +108,8 @@ const Drawing = (() => {
 
   function isInNoDrawZone(x, y) {
     const h = CONFIG.canvas.height;
-    // Top 15% is no-draw zone
     if (y < h * CONFIG.noDrawZoneTop) return true;
 
-    // Check bucket zones
     const b1 = Physics.getBucketBounds(1);
     const b2 = Physics.getBucketBounds(2);
 
@@ -120,7 +126,6 @@ const Drawing = (() => {
     const y = e.clientY - rect.top;
 
     if (placingFan) {
-      // Set fan direction based on click relative to fan position
       const angle = Math.atan2(y - fanPlaceY, x - fanPlaceX);
       placeAndDeductItem('fan', fanPlaceX, fanPlaceY, angle);
       placingFan = false;
@@ -129,10 +134,9 @@ const Drawing = (() => {
     }
 
     if (eraseMode) {
-      // Find closest line owned by current player in current round and erase it
       const lines = Physics.lineBodies.filter(l => l.owner === currentPlayer && l.round === currentRound);
       let closest = null;
-      let closestDist = 20; // max click distance
+      let closestDist = 20;
 
       for (const line of lines) {
         const dist = distToSegment(x, y, line.x1, line.y1, line.x2, line.y2);
@@ -143,7 +147,6 @@ const Drawing = (() => {
       }
 
       if (closest) {
-        // Refund ink
         const cost = calculateInkCost(closest.x1, closest.y1, closest.x2, closest.y2);
         inkRemaining = Math.min(maxInk, inkRemaining + cost);
         Physics.removeLine(closest);
@@ -153,24 +156,16 @@ const Drawing = (() => {
     }
 
     if (selectedItem) {
-      // Place item
       if (isInNoDrawZone(x, y)) return;
 
-      // Check affordability (free items bypass cost)
-      const hasFree = freeItems.indexOf(selectedItem) >= 0;
-      if (!hasFree) {
-        const itemCost = CONFIG.items[selectedItem].cost;
-        const cost = currentRole === 'builder'
-          ? itemCost * CONFIG.ink.builderItemMultiplier
-          : itemCost;
-        if (inkRemaining < cost) return;
-      }
+      // Items cost points, not ink
+      const cost = getItemPointCost(selectedItem);
+      if (getPoints() < cost) return;
 
       if (selectedItem === 'fan') {
         fanPlaceX = x;
         fanPlaceY = y;
         placingFan = true;
-        // Show direction picker - handled in renderer
         return;
       }
 
@@ -189,12 +184,8 @@ const Drawing = (() => {
   function onMouseMove(e) {
     if (!enabled) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Store current mouse pos for preview rendering
-    mouseX = x;
-    mouseY = y;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
   }
 
   function onMouseUp(e) {
@@ -209,7 +200,6 @@ const Drawing = (() => {
 
     const cost = calculateInkCost(startX, startY, endX, endY);
     if (cost > inkRemaining) {
-      // Truncate line to fit ink budget
       const ratio = inkRemaining / cost;
       const truncX = startX + (endX - startX) * ratio;
       const truncY = startY + (endY - startY) * ratio;
@@ -228,23 +218,11 @@ const Drawing = (() => {
   }
 
   function placeAndDeductItem(type, x, y, direction) {
-    // Check if we have a free item from shop
-    const freeIdx = freeItems.indexOf(type);
-    if (freeIdx >= 0) {
-      freeItems.splice(freeIdx, 1);
-      Items.placeItem(type, x, y, currentPlayer, currentRound, direction);
-      return;
-    }
-
-    const baseCost = CONFIG.items[type].cost;
-    const cost = currentRole === 'builder'
-      ? baseCost * CONFIG.ink.builderItemMultiplier
-      : baseCost;
-    if (cost > inkRemaining) return;
+    const cost = getItemPointCost(type);
+    if (getPoints() < cost) return;
 
     Items.placeItem(type, x, y, currentPlayer, currentRound, direction);
-    inkRemaining -= cost;
-    if (onInkChanged) onInkChanged(inkRemaining, maxInk);
+    spendPoints(cost);
   }
 
   function distToSegment(px, py, x1, y1, x2, y2) {
@@ -259,14 +237,12 @@ const Drawing = (() => {
     return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
   }
 
-  // Preview state for renderer
   function getPreviewState() {
     if (!enabled) return null;
     return {
       isDrawing,
       startX, startY,
-      mouseX: mouseX,
-      mouseY: mouseY,
+      mouseX, mouseY,
       eraseMode,
       selectedItem,
       placingFan,
@@ -277,8 +253,10 @@ const Drawing = (() => {
 
   return {
     init, enable, disable,
-    setEraseMode, selectItem, setFreeItems,
+    setEraseMode, selectItem,
+    setPointsCallbacks,
     getInk, getMaxInk,
+    getItemPointCost,
     getPreviewState,
     calculateInkCost,
     isInNoDrawZone,

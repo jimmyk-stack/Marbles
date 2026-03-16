@@ -161,30 +161,15 @@ const UI = (() => {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
 
-    // Ink refills
+    // Shop only sells ink refills — items are bought with points during your turn
     const smallInkCost = isBuilder ? 1 : 2;
     const largeInkCost = isBuilder ? 2 : 4;
 
-    addShopButton(container, `Ink Refill (Small) — ${smallInkCost}pt`, smallInkCost, points, () => {
+    addShopButton(container, `Ink Refill (Small) +50 — ${smallInkCost}pt`, smallInkCost, points, () => {
       Game.buyItem(player, 'inkSmall', smallInkCost);
     });
-    addShopButton(container, `Ink Refill (Large) — ${largeInkCost}pt`, largeInkCost, points, () => {
+    addShopButton(container, `Ink Refill (Large) +150 — ${largeInkCost}pt`, largeInkCost, points, () => {
       Game.buyItem(player, 'inkLarge', largeInkCost);
-    });
-
-    // Items
-    const fanCost = isBuilder ? 4 : 2;
-    const bumperCost = isBuilder ? 4 : 2;
-    const magnetCost = isBuilder ? 6 : 3;
-
-    addShopButton(container, `Fan — ${fanCost}pt`, fanCost, points, () => {
-      Game.buyItem(player, 'fan', fanCost);
-    });
-    addShopButton(container, `Bumper — ${bumperCost}pt`, bumperCost, points, () => {
-      Game.buyItem(player, 'bumper', bumperCost);
-    });
-    addShopButton(container, `Magnet — ${magnetCost}pt`, magnetCost, points, () => {
-      Game.buyItem(player, 'magnet', magnetCost);
     });
   }
 
@@ -215,11 +200,14 @@ const UI = (() => {
     showScreen('gameOver');
   }
 
-  function updateItemCosts(saboteurPlayer) {
+  function updateItemCosts(currentPlayer, role) {
     const btns = document.querySelectorAll('.item-btn');
     btns.forEach(btn => {
       const item = btn.dataset.item;
-      const cost = CONFIG.items[item].cost;
+      const baseCost = CONFIG.items[item].cost;
+      const cost = role === 'builder'
+        ? baseCost * CONFIG.ink.builderItemMultiplier
+        : baseCost;
       btn.querySelector('.item-cost').textContent = cost;
     });
   }
