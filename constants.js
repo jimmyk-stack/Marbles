@@ -49,7 +49,7 @@ const CONFIG = {
   },
   rounds: 8,
   stuckDetection: {
-    velocityThreshold: 0.2,
+    velocityThreshold: 0.5,
     timeoutMs: 3000,
   },
   noDrawZoneTop: 0.15,

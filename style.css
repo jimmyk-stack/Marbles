@@ -170,6 +170,7 @@ body {
 #gameScreen {
   padding-top: 10px;
   gap: 4px;
+  position: relative;
 }
 
 #hud {

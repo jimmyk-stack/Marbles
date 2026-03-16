@@ -76,6 +76,7 @@ const Physics = (() => {
       {
         restitution: CONFIG.marbles.restitution,
         friction: CONFIG.marbles.friction,
+        frictionAir: 0.01,
         label: 'marble-p1',
         isStatic: true,
       }
@@ -88,6 +89,7 @@ const Physics = (() => {
       {
         restitution: CONFIG.marbles.restitution,
         friction: CONFIG.marbles.friction,
+        frictionAir: 0.01,
         label: 'marble-p2',
         isStatic: true,
       }

@@ -152,59 +152,58 @@ const Game = (() => {
   function dropTick() {
     if (state !== 'DROP_PHASE') return;
 
-    const now = performance.now();
-    const dt = Math.min(now - lastDropTime, 33);
-    lastDropTime = now;
-    totalDropTime += dt;
+    try {
+      const now = performance.now();
+      const dt = Math.min(now - lastDropTime, 33);
+      lastDropTime = now;
+      totalDropTime += dt;
 
-    Physics.step(1000 / 60);
+      Physics.step(1000 / 60);
 
-    const m1 = Physics.marble1;
-    const m2 = Physics.marble2;
-    const v1 = Math.sqrt(m1.velocity.x ** 2 + m1.velocity.y ** 2);
-    const v2 = Math.sqrt(m2.velocity.x ** 2 + m2.velocity.y ** 2);
+      const m1 = Physics.marble1;
+      const m2 = Physics.marble2;
+      const v1 = Math.sqrt(m1.velocity.x ** 2 + m1.velocity.y ** 2);
+      const v2 = Math.sqrt(m2.velocity.x ** 2 + m2.velocity.y ** 2);
 
-    if (v1 < CONFIG.stuckDetection.velocityThreshold) {
-      stuckTimers.m1 += dt;
-    } else {
-      stuckTimers.m1 = 0;
-    }
+      // Use a generous threshold — micro-bouncing can keep velocity oscillating
+      const settleThreshold = 0.5;
 
-    if (v2 < CONFIG.stuckDetection.velocityThreshold) {
-      stuckTimers.m2 += dt;
-    } else {
-      stuckTimers.m2 = 0;
-    }
+      if (v1 < settleThreshold) {
+        stuckTimers.m1 += dt;
+      } else {
+        stuckTimers.m1 = 0;
+      }
 
-    // Handle stuck marbles (flash and pass through)
-    if (stuckTimers.m1 > CONFIG.stuckDetection.timeoutMs && !Scoring.checkMarbleInBucket(m1, 1) && !Scoring.checkMarbleInBucket(m1, 2)) {
-      unstickMarble(m1);
-      stuckTimers.m1 = 0;
-    }
-    if (stuckTimers.m2 > CONFIG.stuckDetection.timeoutMs && !Scoring.checkMarbleInBucket(m2, 1) && !Scoring.checkMarbleInBucket(m2, 2)) {
-      unstickMarble(m2);
-      stuckTimers.m2 = 0;
-    }
+      if (v2 < settleThreshold) {
+        stuckTimers.m2 += dt;
+      } else {
+        stuckTimers.m2 = 0;
+      }
 
-    const bothSettled = stuckTimers.m1 > 2000 && stuckTimers.m2 > 2000;
-    const timeout = totalDropTime > 15000;
+      // Handle stuck marbles — nudge sideways instead of disabling collision
+      if (stuckTimers.m1 > CONFIG.stuckDetection.timeoutMs && !Scoring.checkMarbleInBucket(m1, 1) && !Scoring.checkMarbleInBucket(m1, 2)) {
+        Matter.Body.setVelocity(m1, { x: (Math.random() - 0.5) * 4, y: -2 });
+        stuckTimers.m1 = 0;
+      }
+      if (stuckTimers.m2 > CONFIG.stuckDetection.timeoutMs && !Scoring.checkMarbleInBucket(m2, 1) && !Scoring.checkMarbleInBucket(m2, 2)) {
+        Matter.Body.setVelocity(m2, { x: (Math.random() - 0.5) * 4, y: -2 });
+        stuckTimers.m2 = 0;
+      }
 
-    if (bothSettled || timeout) {
+      const bothSettled = stuckTimers.m1 > 1500 && stuckTimers.m2 > 1500;
+      const timeout = totalDropTime > 15000;
+
+      if (bothSettled || timeout) {
+        endDropPhase();
+        return;
+      }
+    } catch (err) {
+      console.error('Drop phase error:', err);
       endDropPhase();
       return;
     }
 
     requestAnimationFrame(dropTick);
-  }
-
-  function unstickMarble(marble) {
-    // Give marble a small downward push to unstick
-    Matter.Body.setVelocity(marble, { x: marble.velocity.x * 0.5, y: 2 });
-    // Temporarily disable collision with lines
-    marble.collisionFilter = { group: -1, category: 0x0002, mask: 0x0001 };
-    setTimeout(() => {
-      marble.collisionFilter = { group: 0, category: 0x0001, mask: 0xFFFFFFFF };
-    }, 500);
   }
 
   function endDropPhase() {
