@@ -11,9 +11,9 @@ const Physics = (() => {
   let itemBodies = []; // managed by Items module
 
   function init() {
-    engine = Engine.create({
-      gravity: { x: 0, y: CONFIG.gravity }
-    });
+    engine = Engine.create();
+    engine.gravity.x = 0;
+    engine.gravity.y = CONFIG.gravity;
     world = engine.world;
 
     createWalls();
@@ -192,9 +192,9 @@ const Physics = (() => {
 
   // Clone world state for simulation preview
   function cloneForSimulation() {
-    const simEngine = Engine.create({
-      gravity: { x: 0, y: CONFIG.gravity }
-    });
+    const simEngine = Engine.create();
+    simEngine.gravity.x = 0;
+    simEngine.gravity.y = CONFIG.gravity;
     const simWorld = simEngine.world;
 
     // Add walls
