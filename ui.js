@@ -1,10 +1,11 @@
-// ui.js — score display, ink bar, shop panel, role indicator, keyboard shortcuts, tutorial
+// ui.js — score display, ink bar, shop panel, role indicator, keyboard shortcuts, tutorial, insults
 
 const UI = (() => {
   let p1Name = 'Player 1';
   let p2Name = 'Player 2';
-  let currentPhase = null; // 'builder' | 'saboteur' | 'drop'
+  let currentPhase = null;
   let tutorialShown = { builder: false, saboteur: false };
+  let lastHandoffRole = null;
 
   function init() {
     // Sound init on first interaction
@@ -29,6 +30,12 @@ const UI = (() => {
       Game.beginRound();
     });
 
+    // Handoff button
+    document.getElementById('handoffBtn').addEventListener('click', () => {
+      Sound.buttonClick();
+      Game.handoffReady();
+    });
+
     document.getElementById('readyBtn').addEventListener('click', () => {
       Sound.phaseTransition();
       Game.builderReady();
@@ -49,11 +56,15 @@ const UI = (() => {
       Game.runSaboteurSimulation();
     });
 
+    // Undo button
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      Drawing.undo();
+    });
+
     document.getElementById('eraseModeBtn').addEventListener('click', (e) => {
       Sound.buttonClick();
       const active = e.target.classList.toggle('active');
       Drawing.setEraseMode(active);
-      // Deselect items
       document.querySelectorAll('#builderControls .item-btn').forEach(b => b.classList.remove('selected'));
     });
 
@@ -76,6 +87,12 @@ const UI = (() => {
       }
     });
 
+    // Insult button
+    document.getElementById('insultBtn').addEventListener('click', () => {
+      const insult = Insults.hurlInsult();
+      if (insult) Sound.insultHurl();
+    });
+
     // Item buttons (both panels)
     document.querySelectorAll('.item-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -85,7 +102,6 @@ const UI = (() => {
         panel.querySelectorAll('.item-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         Drawing.selectItem(item);
-        // Deselect erase/draw modes
         if (panel.id === 'builderControls') {
           document.getElementById('eraseModeBtn').classList.remove('active');
           Drawing.setEraseMode(false);
@@ -137,8 +153,16 @@ const UI = (() => {
     });
   }
 
+  const itemKeys = {
+    '1': 'fan',
+    '2': 'bumper',
+    '3': 'magnet',
+    '4': 'wall',
+    '5': 'ice',
+    '6': 'bomb',
+  };
+
   function handleKeyboard(e) {
-    // Don't handle if typing in an input
     if (e.target.tagName === 'INPUT') return;
 
     if (currentPhase === 'builder') {
@@ -149,14 +173,13 @@ const UI = (() => {
         case 'e':
           document.getElementById('eraseModeBtn').click();
           break;
-        case '1':
-          document.querySelector('#builderControls .item-btn[data-item="fan"]').click();
-          break;
-        case '2':
-          document.querySelector('#builderControls .item-btn[data-item="bumper"]').click();
-          break;
-        case '3':
-          document.querySelector('#builderControls .item-btn[data-item="magnet"]').click();
+        case 'z':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            Drawing.undo();
+          } else {
+            Drawing.undo();
+          }
           break;
         case 'escape':
           Drawing.selectItem(null);
@@ -166,6 +189,12 @@ const UI = (() => {
           break;
         case 'enter':
           document.getElementById('readyBtn').click();
+          break;
+        default:
+          if (itemKeys[e.key]) {
+            const btn = document.querySelector(`#builderControls .item-btn[data-item="${itemKeys[e.key]}"]`);
+            if (btn) btn.click();
+          }
           break;
       }
     } else if (currentPhase === 'saboteur') {
@@ -179,14 +208,11 @@ const UI = (() => {
         case 'e':
           document.getElementById('eraseModeBtn2').click();
           break;
-        case '1':
-          document.querySelector('#saboteurControls .item-btn[data-item="fan"]').click();
+        case 'i':
+          document.getElementById('insultBtn').click();
           break;
-        case '2':
-          document.querySelector('#saboteurControls .item-btn[data-item="bumper"]').click();
-          break;
-        case '3':
-          document.querySelector('#saboteurControls .item-btn[data-item="magnet"]').click();
+        case 'z':
+          Drawing.undo();
           break;
         case 'escape':
           Drawing.selectItem(null);
@@ -197,6 +223,12 @@ const UI = (() => {
           break;
         case 'enter':
           document.getElementById('sabReadyBtn').click();
+          break;
+        default:
+          if (itemKeys[e.key]) {
+            const btn = document.querySelector(`#saboteurControls .item-btn[data-item="${itemKeys[e.key]}"]`);
+            if (btn) btn.click();
+          }
           break;
       }
     }
@@ -219,7 +251,17 @@ const UI = (() => {
     document.getElementById('roundP1Role').textContent = p1Role;
     document.getElementById('roundP2Role').textContent = p2Role;
 
-    // Helpful hint based on round
+    // Round progress pips
+    const progressEl = document.getElementById('roundProgress');
+    progressEl.innerHTML = '';
+    for (let i = 1; i <= CONFIG.rounds; i++) {
+      const pip = document.createElement('div');
+      pip.className = 'round-pip';
+      if (i < round) pip.classList.add('completed');
+      if (i === round) pip.classList.add('current');
+      progressEl.appendChild(pip);
+    }
+
     const hints = [
       'The Builder goes first. Saboteur, look away!',
       'Roles have swapped! New round, new strategy.',
@@ -233,6 +275,14 @@ const UI = (() => {
     document.getElementById('roundHint').textContent = hints[Math.min(round - 1, hints.length - 1)];
 
     showScreen('roundStart');
+  }
+
+  function showHandoff(playerName, role) {
+    lastHandoffRole = role;
+    document.getElementById('handoffTitle').textContent = 'Pass the device!';
+    document.getElementById('handoffMessage').textContent =
+      `${playerName}, it's your turn as ${role.charAt(0).toUpperCase() + role.slice(1)}.`;
+    showScreen('handoffScreen');
   }
 
   function showGameScreen(phase, builderPlayer, round, p1Score, p2Score) {
@@ -269,15 +319,14 @@ const UI = (() => {
       document.getElementById('saboteurControls').style.display = 'none';
       document.getElementById('dropOverlay').style.display = 'none';
 
-      // Tutorial on first builder turn
       if (!tutorialShown.builder) {
         tutorialShown.builder = true;
         showTutorial('Builder Phase', `
           <div class="tutorial-step"><span class="step-num">1</span><p><strong>Click & drag</strong> on the canvas to draw lines. Lines cost ink.</p></div>
           <div class="tutorial-step"><span class="step-num">2</span><p>Route <strong>your marble</strong> (colored dot at top) into <strong>your bucket</strong> (bottom).</p></div>
-          <div class="tutorial-step"><span class="step-num">3</span><p>Press <strong>S</strong> to simulate and preview the drop (3 tries max).</p></div>
+          <div class="tutorial-step"><span class="step-num">3</span><p>Press <strong>S</strong> to simulate and preview the drop. <strong>Z</strong> to undo.</p></div>
           <div class="tutorial-step"><span class="step-num">4</span><p>Press <strong>Enter</strong> or click Ready when done. The Saboteur goes next!</p></div>
-          <p style="margin-top:12px; color: #888; font-size:12px;">Items (1/2/3) cost score points, not ink. E = erase. Esc = deselect.</p>
+          <p style="margin-top:12px; color: #888; font-size:12px;">Items (1-6) cost score points. E = erase. Hold Shift for line snap. Esc = deselect.</p>
         `);
       }
     } else if (phase === 'saboteur') {
@@ -293,8 +342,8 @@ const UI = (() => {
         tutorialShown.saboteur = true;
         showTutorial('Saboteur Phase', `
           <div class="tutorial-step"><span class="step-num">1</span><p>Press <strong>S</strong> to watch the marble simulation. The trail fades — watch closely!</p></div>
-          <div class="tutorial-step"><span class="step-num">2</span><p>The sim shows the <strong>real trajectory</strong> including the Builder's hidden lines.</p></div>
-          <div class="tutorial-step"><span class="step-num">3</span><p>Place <strong>items</strong> (1/2/3) where you think the Builder's edits are to redirect marbles.</p></div>
+          <div class="tutorial-step"><span class="step-num">2</span><p>Place <strong>items</strong> (1-6) where you think the Builder's edits are to redirect marbles.</p></div>
+          <div class="tutorial-step"><span class="step-num">3</span><p>Press <strong>I</strong> to hurl insults! Distract your opponent with trash talk.</p></div>
           <div class="tutorial-step"><span class="step-num">4</span><p>Your placements are <strong>blind</strong> — the sim won't update with your items.</p></div>
           <p style="margin-top:12px; color: #888; font-size:12px;">D = draw lines (costs 2.5x ink). Press Enter or click Ready when done.</p>
         `);
@@ -345,7 +394,6 @@ const UI = (() => {
     document.getElementById('shopP1Points').textContent = p1Score;
     document.getElementById('shopP2Points').textContent = p2Score;
 
-    // Next round roles (roles swap after shop)
     const nextBuilder = builderPlayer === 1 ? 2 : 1;
     const p1NextRole = nextBuilder === 1 ? 'Builder' : 'Saboteur';
     const p2NextRole = nextBuilder === 2 ? 'Builder' : 'Saboteur';
@@ -368,17 +416,35 @@ const UI = (() => {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
 
+    // Ink section
+    const inkLabel = document.createElement('div');
+    inkLabel.className = 'shop-section-label';
+    inkLabel.textContent = 'Ink Refills';
+    container.appendChild(inkLabel);
+
     const smallInkCost = isBuilder ? 1 : 2;
     const largeInkCost = isBuilder ? 2 : 4;
-    const inkLabel = isBuilder ? '(Builder rate)' : '(Saboteur rate)';
+    const rateLabel = isBuilder ? '(Builder rate)' : '(Saboteur rate)';
 
-    addShopButton(container, `+50 Ink — ${smallInkCost}pt ${inkLabel}`, smallInkCost, points, () => {
+    addShopButton(container, `+50 Ink — ${smallInkCost}pt ${rateLabel}`, smallInkCost, points, () => {
       Sound.shopBuy();
       Game.buyItem(player, 'inkSmall', smallInkCost);
     });
-    addShopButton(container, `+150 Ink — ${largeInkCost}pt ${inkLabel}`, largeInkCost, points, () => {
+    addShopButton(container, `+150 Ink — ${largeInkCost}pt ${rateLabel}`, largeInkCost, points, () => {
       Sound.shopBuy();
       Game.buyItem(player, 'inkLarge', largeInkCost);
+    });
+
+    // Power-ups section
+    const powerLabel = document.createElement('div');
+    powerLabel.className = 'shop-section-label';
+    powerLabel.textContent = 'Power-ups';
+    container.appendChild(powerLabel);
+
+    const simCost = 2;
+    addShopButton(container, `+2 Simulations — ${simCost}pt`, simCost, points, () => {
+      Sound.shopBuy();
+      Game.buyItem(player, 'extraSim', simCost);
     });
   }
 
@@ -391,7 +457,7 @@ const UI = (() => {
       onClick();
       btn.disabled = true;
       btn.classList.add('purchased');
-      btn.textContent = label + ' (purchased)';
+      btn.textContent = label + ' \u2714';
     });
     container.appendChild(btn);
   }
@@ -416,14 +482,12 @@ const UI = (() => {
     document.getElementById('finalP2').innerHTML =
       `<span class="p2-color">${p2Name}: ${p2Score}</span>`;
 
-    // Sound
     if (p1Score !== p2Score) {
       Sound.gameOver(true);
     } else {
       Sound.gameOver(false);
     }
 
-    // Confetti on the game over canvas
     const goCanvas = document.getElementById('gameOverCanvas');
     Effects.startConfetti(winnerColor, goCanvas.width, goCanvas.height);
     const goCtx = goCanvas.getContext('2d');
@@ -445,6 +509,7 @@ const UI = (() => {
     const btns = document.querySelectorAll('.item-btn');
     btns.forEach(btn => {
       const item = btn.dataset.item;
+      if (!CONFIG.items[item]) return;
       const baseCost = CONFIG.items[item].cost;
       const cost = role === 'builder'
         ? baseCost * CONFIG.ink.builderItemMultiplier
@@ -455,10 +520,12 @@ const UI = (() => {
 
   return {
     init, showScreen, showRoundStart, showGameScreen,
+    showHandoff,
     updateInkBar, updateSimCount, showScoreReveal,
     showShop, showGameOver, updateItemCosts, showTutorial,
     get p1Name() { return p1Name; },
     get p2Name() { return p2Name; },
     get currentPhase() { return currentPhase; },
+    get lastHandoffRole() { return lastHandoffRole; },
   };
 })();

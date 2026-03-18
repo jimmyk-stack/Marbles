@@ -10,6 +10,9 @@
 <body>
   <!-- LOBBY SCREEN -->
   <div id="lobby" class="screen active">
+    <div class="lobby-bg">
+      <canvas id="lobbyCanvas" width="800" height="300"></canvas>
+    </div>
     <h1>SABOTAGE</h1>
     <p class="subtitle">A 2-player marble physics game</p>
     <div class="rules-summary">
@@ -33,6 +36,7 @@
   <!-- ROUND START SPLASH -->
   <div id="roundStart" class="screen overlay">
     <h2 id="roundTitle">Round 1</h2>
+    <div id="roundProgress" class="round-progress"></div>
     <div class="role-assignments">
       <div class="role-card p1">
         <span class="player-name p1-color" id="roundP1Name">P1</span>
@@ -45,6 +49,16 @@
     </div>
     <p id="roundHint" class="subtitle" style="margin-top:8px"></p>
     <button id="roundStartBtn" class="btn-primary">Begin Round</button>
+  </div>
+
+  <!-- HANDOFF SCREEN -->
+  <div id="handoffScreen" class="screen overlay" style="display:none">
+    <div class="handoff-card">
+      <h2 id="handoffTitle">Pass the device!</h2>
+      <p id="handoffMessage" class="subtitle"></p>
+      <div class="handoff-icon">&#128260;</div>
+      <button id="handoffBtn" class="btn-primary">I'm Ready</button>
+    </div>
   </div>
 
   <!-- GAME SCREEN -->
@@ -77,10 +91,16 @@
     </div>
 
     <!-- Canvas -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas" width="800" height="900"></canvas>
+
+    <!-- Insult Banner -->
+    <div id="insultBanner" class="insult-banner" style="display:none">
+      <span id="insultText"></span>
+    </div>
 
     <!-- Builder Controls -->
     <div id="builderControls" class="controls-panel">
+      <button id="undoBtn" class="btn-secondary" title="Undo last line">&#8617;<span class="key-hint">Z</span></button>
       <button id="simBtn" class="btn-secondary">Simulate (<span id="simCount">3</span>)<span class="key-hint">S</span></button>
       <button id="eraseModeBtn" class="btn-secondary">Erase<span class="key-hint">E</span></button>
       <div class="controls-divider"></div>
@@ -88,6 +108,9 @@
         <button class="item-btn" data-item="fan"><span class="item-icon">~</span>Fan <span class="item-cost">4</span>pt<span class="key-hint">1</span></button>
         <button class="item-btn" data-item="bumper"><span class="item-icon">O</span>Bumper <span class="item-cost">4</span>pt<span class="key-hint">2</span></button>
         <button class="item-btn" data-item="magnet"><span class="item-icon">*</span>Magnet <span class="item-cost">6</span>pt<span class="key-hint">3</span></button>
+        <button class="item-btn" data-item="wall"><span class="item-icon">|</span>Wall <span class="item-cost">6</span>pt<span class="key-hint">4</span></button>
+        <button class="item-btn" data-item="ice"><span class="item-icon">&#10052;</span>Ice <span class="item-cost">4</span>pt<span class="key-hint">5</span></button>
+        <button class="item-btn" data-item="bomb"><span class="item-icon">&#128163;</span>Bomb <span class="item-cost">8</span>pt<span class="key-hint">6</span></button>
       </div>
       <div class="controls-divider"></div>
       <button id="readyBtn" class="btn-primary" style="margin-left:auto; padding:8px 20px; font-size:14px;">Ready<span class="key-hint" style="background:rgba(255,255,255,0.15)">Enter</span></button>
@@ -103,20 +126,29 @@
         <button class="item-btn" data-item="fan"><span class="item-icon">~</span>Fan <span class="item-cost">2</span>pt<span class="key-hint">1</span></button>
         <button class="item-btn" data-item="bumper"><span class="item-icon">O</span>Bumper <span class="item-cost">2</span>pt<span class="key-hint">2</span></button>
         <button class="item-btn" data-item="magnet"><span class="item-icon">*</span>Magnet <span class="item-cost">3</span>pt<span class="key-hint">3</span></button>
+        <button class="item-btn" data-item="wall"><span class="item-icon">|</span>Wall <span class="item-cost">3</span>pt<span class="key-hint">4</span></button>
+        <button class="item-btn" data-item="ice"><span class="item-icon">&#10052;</span>Ice <span class="item-cost">2</span>pt<span class="key-hint">5</span></button>
+        <button class="item-btn" data-item="bomb"><span class="item-icon">&#128163;</span>Bomb <span class="item-cost">4</span>pt<span class="key-hint">6</span></button>
       </div>
       <div class="controls-divider"></div>
+      <button id="insultBtn" class="btn-secondary insult-btn-hurl">Insult!<span class="key-hint">I</span></button>
       <button id="sabReadyBtn" class="btn-primary" style="margin-left:auto; padding:8px 20px; font-size:14px;">Ready<span class="key-hint" style="background:rgba(255,255,255,0.15)">Enter</span></button>
     </div>
 
     <!-- Drop Phase overlay -->
     <div id="dropOverlay" class="phase-overlay" style="display:none">
-      <span>Dropping...</span>
+      <span id="dropOverlayText">Dropping...</span>
+    </div>
+
+    <!-- Countdown overlay -->
+    <div id="countdownOverlay" class="countdown-overlay" style="display:none">
+      <span id="countdownNumber">3</span>
     </div>
   </div>
 
   <!-- SCORE REVEAL -->
   <div id="scoreReveal" class="screen overlay" style="display:none">
-    <h2>Score!</h2>
+    <h2 id="scoreRevealTitle">Score!</h2>
     <div id="scoreDetails"></div>
     <div class="score-totals">
       <span id="revealP1"></span>
@@ -128,7 +160,7 @@
   <!-- SHOP SCREEN -->
   <div id="shopScreen" class="screen overlay" style="display:none">
     <h2>Shop</h2>
-    <p class="subtitle" style="margin-bottom:8px">Spend points on ink refills for next round</p>
+    <p class="subtitle" style="margin-bottom:8px">Spend points on upgrades for next round</p>
     <div class="shop-panels">
       <div class="shop-panel p1-panel">
         <h3 id="shopP1Name">P1</h3>
@@ -175,6 +207,7 @@
   <script src="drawing.js"></script>
   <script src="effects.js"></script>
   <script src="sound.js"></script>
+  <script src="insults.js"></script>
   <script src="renderer.js"></script>
   <script src="simulation.js"></script>
   <script src="scoring.js"></script>

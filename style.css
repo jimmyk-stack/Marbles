@@ -96,11 +96,67 @@ body {
   50% { transform: translateY(-4px); }
 }
 
+@keyframes countdownPulse {
+  0% { transform: scale(0.5); opacity: 0; }
+  40% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes insultSlide {
+  0% { transform: translateX(-50%) translateY(-30px); opacity: 0; }
+  15% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  85% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+}
+
+@keyframes insultShake {
+  0%, 100% { transform: translateX(-50%) rotate(0); }
+  10% { transform: translateX(-50%) rotate(-2deg); }
+  20% { transform: translateX(-50%) rotate(2deg); }
+  30% { transform: translateX(-50%) rotate(-1deg); }
+  40% { transform: translateX(-50%) rotate(1deg); }
+  50% { transform: translateX(-50%) rotate(0); }
+}
+
+@keyframes handoffPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes scoreRevealPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes victoryGlow {
+  0%, 100% { text-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+  50% { text-shadow: 0 0 40px currentColor, 0 0 80px currentColor, 0 0 120px currentColor; }
+}
+
 /* --- Lobby --- */
 
 #lobby {
-  padding-top: 60px;
+  padding-top: 40px;
   gap: 24px;
+  position: relative;
+}
+
+.lobby-bg {
+  position: relative;
+  width: 800px;
+  height: 300px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: -20px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+}
+
+#lobbyCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 #lobby h1 {
@@ -112,6 +168,8 @@ body {
     0 0 30px rgba(68, 136, 255, 0.4),
     0 0 60px rgba(68, 136, 255, 0.15);
   animation: float 3s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
 }
 
 .subtitle {
@@ -208,7 +266,7 @@ body {
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  transform: translateY(1px) scale(0.98);
 }
 
 .btn-secondary {
@@ -227,6 +285,11 @@ body {
 .btn-secondary:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0) scale(0.97);
 }
 
 .btn-secondary.active {
@@ -238,6 +301,7 @@ body {
 .btn-secondary:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* --- Round Start --- */
@@ -250,6 +314,36 @@ body {
   font-size: 52px;
   font-weight: 800;
   animation: bounceIn 0.5s ease-out;
+}
+
+/* Round Progress Bar */
+.round-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  animation: fadeIn 0.4s ease-out 0.15s both;
+}
+
+.round-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s;
+}
+
+.round-pip.completed {
+  background: var(--p1);
+  border-color: var(--p1-light);
+  box-shadow: 0 0 8px rgba(68, 136, 255, 0.4);
+}
+
+.round-pip.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+  transform: scale(1.2);
 }
 
 .role-assignments {
@@ -287,6 +381,26 @@ body {
   text-transform: uppercase;
   letter-spacing: 3px;
   font-weight: 600;
+}
+
+/* --- Handoff Screen --- */
+
+.handoff-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: bounceIn 0.5s ease-out;
+}
+
+.handoff-card h2 {
+  font-size: 36px;
+  font-weight: 800;
+}
+
+.handoff-icon {
+  font-size: 64px;
+  animation: handoffPulse 1.5s ease-in-out infinite;
 }
 
 /* --- Game Screen --- */
@@ -426,37 +540,37 @@ body {
 .controls-panel {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 800px;
-  padding: 8px 14px;
+  padding: 8px 10px;
   background: rgba(0, 0, 0, 0.4);
   border-radius: 0 0 10px 10px;
   border: 1px solid var(--border);
   border-top: none;
+  flex-wrap: wrap;
 }
 
 .controls-divider {
   width: 1px;
   height: 24px;
   background: var(--border);
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 .item-shop {
   display: flex;
-  gap: 6px;
-  margin-left: auto;
+  gap: 4px;
 }
 
 .item-btn {
   background: var(--bg-card);
   color: #bbb;
   border: 1px solid var(--border);
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
   cursor: pointer;
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   transition: all 0.15s;
   white-space: nowrap;
@@ -466,6 +580,7 @@ body {
   background: var(--bg-card-hover);
   border-color: var(--border-hover);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .item-btn.selected {
@@ -480,7 +595,48 @@ body {
 }
 
 .item-btn .item-icon {
-  margin-right: 3px;
+  margin-right: 2px;
+}
+
+/* Insult button */
+.insult-btn-hurl {
+  background: rgba(255, 50, 100, 0.1);
+  border-color: rgba(255, 50, 100, 0.3);
+  color: #ff6688;
+}
+
+.insult-btn-hurl:hover {
+  background: rgba(255, 50, 100, 0.2);
+  border-color: rgba(255, 50, 100, 0.5);
+  color: #ff88aa;
+}
+
+/* Insult Banner */
+.insult-banner {
+  position: absolute;
+  top: 160px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(255, 50, 80, 0.9), rgba(200, 30, 60, 0.9));
+  color: #fff;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  z-index: 50;
+  text-align: center;
+  max-width: 600px;
+  box-shadow: 0 4px 30px rgba(255, 50, 80, 0.4), 0 0 60px rgba(255, 50, 80, 0.15);
+  pointer-events: none;
+}
+
+.insult-banner.insult-enter {
+  animation: insultShake 0.5s ease-out, insultSlide 3.5s ease-out;
+}
+
+.insult-banner.insult-exit {
+  animation: fadeIn 0.4s ease-out reverse;
 }
 
 /* Keyboard hint badges */
@@ -503,7 +659,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   width: 800px;
-  height: 600px;
+  height: 900px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -515,6 +671,29 @@ body {
   text-transform: uppercase;
 }
 
+/* Countdown overlay */
+.countdown-overlay {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.countdown-overlay span {
+  font-size: 140px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  text-shadow: 0 0 60px rgba(68, 136, 255, 0.5);
+  animation: countdownPulse 0.8s ease-out;
+}
+
 /* --- Score Reveal --- */
 
 #scoreReveal {
@@ -524,7 +703,7 @@ body {
 #scoreReveal h2 {
   font-size: 44px;
   font-weight: 800;
-  animation: bounceIn 0.4s ease-out;
+  animation: scoreRevealPop 0.6s ease-out;
 }
 
 #scoreDetails {
@@ -570,7 +749,7 @@ body {
   background: var(--bg-card);
   border-radius: 14px;
   padding: 20px 24px;
-  min-width: 260px;
+  min-width: 280px;
   border: 1px solid var(--border);
 }
 
@@ -608,6 +787,11 @@ body {
 .shop-item-btn:hover:not(:disabled) {
   background: var(--bg-card-hover);
   border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.shop-item-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .shop-item-btn:disabled {
@@ -619,6 +803,15 @@ body {
   border-color: var(--success);
   color: var(--success);
   background: rgba(68, 255, 136, 0.06);
+}
+
+.shop-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  margin-bottom: 2px;
 }
 
 .p1-panel { border-color: rgba(68, 136, 255, 0.2); }
@@ -655,7 +848,7 @@ body {
 #gameOver h2 {
   font-size: 56px;
   font-weight: 800;
-  animation: bounceIn 0.5s ease-out;
+  animation: bounceIn 0.5s ease-out, victoryGlow 2s ease-in-out infinite 0.5s;
 }
 
 .final-scores {
@@ -762,9 +955,8 @@ body {
     width: 100vw !important;
     max-width: 800px;
   }
-}
-
-/* --- Fan Direction Picker (unused, kept for reference) --- */
-#fanDirectionPicker {
-  display: none !important;
+  .lobby-bg {
+    width: 100vw;
+    max-width: 800px;
+  }
 }

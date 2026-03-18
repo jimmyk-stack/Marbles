@@ -1,24 +1,48 @@
 // renderer.js — builder view vs saboteur view, line age/opacity
-// Full visual polish: gradients, glow, depth zones, animated items
+// Full visual polish: gradients, glow, depth zones, animated items, atmosphere
 
 const Renderer = (() => {
   let canvas, ctx;
   let bgGradient = null;
   let frameCount = 0;
+  let dpr = 1;
 
-  // Cached gradients for marbles
-  let m1Gradient = null;
-  let m2Gradient = null;
+  // Ambient particles for atmosphere
+  let ambientParticles = [];
 
   function init(canvasEl) {
     canvas = canvasEl;
     ctx = canvas.getContext('2d');
+
+    // HiDPI support
+    dpr = window.devicePixelRatio || 1;
+    if (dpr > 1) {
+      const w = canvas.width;
+      const h = canvas.height;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.scale(dpr, dpr);
+    }
 
     // Pre-build background gradient
     bgGradient = ctx.createLinearGradient(0, 0, 0, CONFIG.canvas.height);
     bgGradient.addColorStop(0, '#0a0a1e');
     bgGradient.addColorStop(0.5, '#0d0d24');
     bgGradient.addColorStop(1, '#111128');
+
+    // Init ambient particles
+    for (let i = 0; i < 30; i++) {
+      ambientParticles.push({
+        x: Math.random() * CONFIG.canvas.width,
+        y: Math.random() * CONFIG.canvas.height,
+        size: 0.5 + Math.random() * 1.5,
+        speed: 0.1 + Math.random() * 0.3,
+        alpha: 0.05 + Math.random() * 0.15,
+        drift: (Math.random() - 0.5) * 0.2,
+      });
+    }
   }
 
   function clear() {
@@ -26,17 +50,64 @@ const Renderer = (() => {
     ctx.fillRect(0, 0, CONFIG.canvas.width, CONFIG.canvas.height);
   }
 
+  function drawAmbientParticles() {
+    for (const p of ambientParticles) {
+      p.y -= p.speed;
+      p.x += p.drift + Math.sin(frameCount * 0.01 + p.x) * 0.1;
+      if (p.y < -10) {
+        p.y = CONFIG.canvas.height + 10;
+        p.x = Math.random() * CONFIG.canvas.width;
+      }
+      if (p.x < 0) p.x = CONFIG.canvas.width;
+      if (p.x > CONFIG.canvas.width) p.x = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(150, 170, 255, ${p.alpha})`;
+      ctx.fill();
+    }
+  }
+
+  function drawVignette() {
+    const w = CONFIG.canvas.width;
+    const h = CONFIG.canvas.height;
+    const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function drawGrid() {
+    const w = CONFIG.canvas.width;
+    const h = CONFIG.canvas.height;
+    ctx.strokeStyle = 'rgba(100, 100, 180, 0.03)';
+    ctx.lineWidth = 1;
+    const spacing = 40;
+    for (let x = 0; x <= w; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= h; y += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+  }
+
   function drawDepthZones() {
     const w = CONFIG.canvas.width;
     const h = CONFIG.canvas.height;
     const zones = CONFIG.ink.proximityMultiplier;
 
-    // Draw subtle zone bands from bottom up
     const zoneColors = [
-      'rgba(255, 50, 50, 0.04)',   // 8x - near bottom (danger)
-      'rgba(255, 150, 50, 0.03)',  // 4x
-      'rgba(255, 255, 100, 0.02)', // 2x
-      'rgba(100, 255, 100, 0.01)', // 1x - far from buckets (cheap)
+      'rgba(255, 50, 50, 0.04)',
+      'rgba(255, 150, 50, 0.03)',
+      'rgba(255, 255, 100, 0.02)',
+      'rgba(100, 255, 100, 0.01)',
     ];
 
     for (let i = 0; i < zones.length; i++) {
@@ -57,20 +128,18 @@ const Renderer = (() => {
   function drawSingleBucket(b, color, label, viewMode) {
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const bl = parseInt(color.slice(5, 7), 16);
 
     // Glow behind bucket
     const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, b.width * 0.8);
-    glowGrad.addColorStop(0, color.replace(')', ', 0.08)').replace('rgb', 'rgba'));
+    glowGrad.addColorStop(0, `rgba(${r}, ${g}, ${bl}, 0.08)`);
     glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glowGrad;
     ctx.fillRect(cx - b.width, cy - b.height, b.width * 2, b.height * 2);
 
     // Bucket interior fill
-    ctx.fillStyle = color.replace(')', ', 0.06)').replace('rgb', 'rgba');
-    // Parse hex to rgba
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const bl = parseInt(color.slice(5, 7), 16);
     ctx.fillStyle = `rgba(${r}, ${g}, ${bl}, 0.06)`;
     ctx.fillRect(b.x, b.y, b.width, b.height);
 
@@ -92,7 +161,7 @@ const Renderer = (() => {
 
     // Bucket label
     ctx.fillStyle = `rgba(${r}, ${g}, ${bl}, 0.4)`;
-    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.font = 'bold 14px "Inter", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`P${label}`, cx, cy + 5);
   }
@@ -102,14 +171,12 @@ const Renderer = (() => {
     const w = CONFIG.canvas.width;
     const zoneH = h * CONFIG.noDrawZoneTop;
 
-    // Subtle gradient overlay
     const grad = ctx.createLinearGradient(0, 0, 0, zoneH);
     grad.addColorStop(0, 'rgba(40, 40, 80, 0.15)');
     grad.addColorStop(1, 'rgba(40, 40, 80, 0.03)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, zoneH);
 
-    // Dashed border line
     ctx.strokeStyle = 'rgba(100, 100, 160, 0.2)';
     ctx.setLineDash([8, 6]);
     ctx.lineWidth = 1;
@@ -119,9 +186,8 @@ const Renderer = (() => {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // "DROP ZONE" label
     ctx.fillStyle = 'rgba(100, 100, 160, 0.15)';
-    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.font = '11px "Inter", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('DROP ZONE', w / 2, zoneH - 6);
   }
@@ -195,6 +261,12 @@ const Renderer = (() => {
         drawFan(item, alpha);
       } else if (item.type === 'magnet') {
         drawMagnet(item, alpha);
+      } else if (item.type === 'wall') {
+        drawWall(item, alpha);
+      } else if (item.type === 'ice') {
+        drawIce(item, alpha);
+      } else if (item.type === 'bomb') {
+        drawBomb(item, alpha);
       }
     }
   }
@@ -223,7 +295,6 @@ const Renderer = (() => {
     ctx.arc(item.x, item.y, r, 0, Math.PI * 2);
     ctx.fillStyle = grad;
     ctx.fill();
-
     ctx.strokeStyle = `rgba(${rgb}, ${alpha})`;
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -293,7 +364,6 @@ const Renderer = (() => {
     const pulse = 1 + Math.sin(frameCount * 0.04) * 0.08;
     const magnetR = CONFIG.items.magnet.radius;
 
-    // Pulsing range circle
     ctx.save();
     ctx.globalAlpha = alpha * 0.08;
     ctx.beginPath();
@@ -302,7 +372,6 @@ const Renderer = (() => {
     ctx.fill();
     ctx.restore();
 
-    // Range indicator rings
     ctx.strokeStyle = `rgba(${rgb}, ${alpha * 0.12})`;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
@@ -314,7 +383,6 @@ const Renderer = (() => {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Main body
     const grad = ctx.createRadialGradient(item.x, item.y, 0, item.x, item.y, 10);
     grad.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.6})`);
     grad.addColorStop(0.5, `rgba(${rgb}, ${alpha})`);
@@ -328,11 +396,176 @@ const Renderer = (() => {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // M label
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
-    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+    ctx.font = 'bold 10px "Inter", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('M', item.x, item.y + 4);
+  }
+
+  function drawWall(item, alpha) {
+    const rgb = item.owner === 1 ? '68, 136, 255' : '255, 68, 68';
+    const len = CONFIG.items.wall.length;
+    const angle = item.direction || 0;
+    const x1 = item.x - Math.cos(angle) * len / 2;
+    const y1 = item.y - Math.sin(angle) * len / 2;
+    const x2 = item.x + Math.cos(angle) * len / 2;
+    const y2 = item.y + Math.sin(angle) * len / 2;
+
+    // Glow
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.2;
+    ctx.strokeStyle = `rgba(${rgb}, 1)`;
+    ctx.lineWidth = CONFIG.items.wall.thickness + 8;
+    ctx.filter = 'blur(4px)';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Main wall line
+    ctx.strokeStyle = `rgba(${rgb}, ${alpha})`;
+    ctx.lineWidth = CONFIG.items.wall.thickness;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // End caps
+    ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x1, y1, CONFIG.items.wall.thickness / 2 + 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x2, y2, CONFIG.items.wall.thickness / 2 + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Center label
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+    ctx.font = 'bold 8px "Inter", "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('W', item.x, item.y + 3);
+  }
+
+  function drawIce(item, alpha) {
+    const r = CONFIG.items.ice.radius;
+    const pulse = 1 + Math.sin(frameCount * 0.03) * 0.05;
+
+    // Ice zone glow
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.12;
+    const grad = ctx.createRadialGradient(item.x, item.y, 0, item.x, item.y, r * pulse);
+    grad.addColorStop(0, 'rgba(100, 200, 255, 0.4)');
+    grad.addColorStop(0.6, 'rgba(100, 200, 255, 0.15)');
+    grad.addColorStop(1, 'rgba(100, 200, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, r * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Zone border
+    ctx.strokeStyle = `rgba(100, 200, 255, ${alpha * 0.25})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Snowflake icon at center
+    ctx.fillStyle = `rgba(150, 220, 255, ${alpha * 0.7})`;
+    ctx.font = '16px "Inter", "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u2744', item.x, item.y + 6);
+
+    // Floating ice crystals
+    for (let i = 0; i < 4; i++) {
+      const angle = (frameCount * 0.02 + i * Math.PI / 2);
+      const cx = item.x + Math.cos(angle) * r * 0.5;
+      const cy = item.y + Math.sin(angle) * r * 0.5;
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fillStyle = '#aaddff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawBomb(item, alpha) {
+    if (item.triggered) {
+      // Show explosion residue
+      const age = (Date.now() - (item.triggerTime || 0)) / 1000;
+      if (age > 2) return;
+      const fadeAlpha = Math.max(0, 1 - age / 2) * alpha;
+
+      ctx.save();
+      ctx.globalAlpha = fadeAlpha * 0.3;
+      const grad = ctx.createRadialGradient(item.x, item.y, 0, item.x, item.y, CONFIG.items.bomb.radius * 2);
+      grad.addColorStop(0, 'rgba(255, 100, 0, 0.5)');
+      grad.addColorStop(0.5, 'rgba(255, 50, 0, 0.2)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(item.x, item.y, CONFIG.items.bomb.radius * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    const r = 12;
+    const pulse = 1 + Math.sin(frameCount * 0.08) * 0.1;
+    const rgb = item.owner === 1 ? '68, 136, 255' : '255, 68, 68';
+
+    // Danger zone indicator
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.06;
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, CONFIG.items.bomb.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 100, 0, 1)';
+    ctx.fill();
+    ctx.restore();
+
+    // Dashed range
+    ctx.strokeStyle = `rgba(255, 100, 0, ${alpha * 0.15})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, CONFIG.items.bomb.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Bomb body
+    const grad = ctx.createRadialGradient(item.x - 3, item.y - 3, 0, item.x, item.y, r);
+    grad.addColorStop(0, `rgba(255, 200, 100, ${alpha})`);
+    grad.addColorStop(0.5, `rgba(200, 80, 20, ${alpha})`);
+    grad.addColorStop(1, `rgba(100, 30, 10, ${alpha * 0.8})`);
+
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, r * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${rgb}, ${alpha * 0.6})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Fuse spark
+    const sparkAngle = frameCount * 0.15;
+    const sparkX = item.x + Math.cos(sparkAngle) * 3;
+    const sparkY = item.y - r - 2 + Math.sin(sparkAngle * 2) * 2;
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, 2 + Math.sin(frameCount * 0.2) * 1, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 220, 100, ${alpha * 0.8})`;
+    ctx.fill();
+
+    // Bomb label
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+    ctx.font = 'bold 10px "Inter", "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u{1F4A3}', item.x, item.y + 4);
   }
 
   function drawMarble(marble, color, lightColor, isDropping) {
@@ -364,7 +597,6 @@ const Renderer = (() => {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Outer ring
     ctx.strokeStyle = lightColor;
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -418,20 +650,24 @@ const Renderer = (() => {
       // Ink cost preview
       const cost = Drawing.calculateInkCost(state.startX, state.startY, state.mouseX, state.mouseY);
       ctx.fillStyle = cost > Drawing.getInk() ? '#ff4444' : 'rgba(255,255,255,0.5)';
-      ctx.font = '11px "Segoe UI", sans-serif';
+      ctx.font = '11px "Inter", "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`${Math.round(cost)} ink`, (state.startX + state.mouseX) / 2, (state.startY + state.mouseY) / 2 - 12);
+
+      // Snap guide - show angle
+      if (state.snapActive) {
+        ctx.fillStyle = 'rgba(255, 204, 0, 0.5)';
+        ctx.fillText('SNAP', (state.startX + state.mouseX) / 2, (state.startY + state.mouseY) / 2 - 24);
+      }
     }
 
-    if (state.selectedItem && !state.placingFan) {
-      // Ghost preview of selected item at cursor
+    if (state.selectedItem && !state.placingFan && !state.placingWall) {
       drawItemGhost(state.selectedItem, state.mouseX, state.mouseY, state.currentPlayer);
     }
 
     if (state.placingFan) {
       const angle = Math.atan2(state.mouseY - state.fanPlaceY, state.mouseX - state.fanPlaceX);
 
-      // Pulsing circle at placement point
       const pulse = 1 + Math.sin(frameCount * 0.1) * 0.1;
       ctx.beginPath();
       ctx.arc(state.fanPlaceX, state.fanPlaceY, 18 * pulse, 0, Math.PI * 2);
@@ -439,7 +675,6 @@ const Renderer = (() => {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Direction line
       ctx.beginPath();
       ctx.moveTo(state.fanPlaceX, state.fanPlaceY);
       ctx.lineTo(
@@ -450,7 +685,6 @@ const Renderer = (() => {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Cone preview
       ctx.save();
       ctx.translate(state.fanPlaceX, state.fanPlaceY);
       ctx.rotate(angle);
@@ -462,11 +696,34 @@ const Renderer = (() => {
       ctx.fill();
       ctx.restore();
 
-      // Label
       ctx.fillStyle = '#ffcc00';
-      ctx.font = '12px "Segoe UI", sans-serif';
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Click to set direction', state.fanPlaceX, state.fanPlaceY - 28);
+    }
+
+    if (state.placingWall) {
+      const angle = Math.atan2(state.mouseY - state.wallPlaceY, state.mouseX - state.wallPlaceX);
+      const len = CONFIG.items.wall.length;
+      const x1 = state.wallPlaceX - Math.cos(angle) * len / 2;
+      const y1 = state.wallPlaceY - Math.sin(angle) * len / 2;
+      const x2 = state.wallPlaceX + Math.cos(angle) * len / 2;
+      const y2 = state.wallPlaceY + Math.sin(angle) * len / 2;
+
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = CONFIG.items.wall.thickness;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Click to set angle', state.wallPlaceX, state.wallPlaceY - 28);
     }
   }
 
@@ -503,10 +760,44 @@ const Renderer = (() => {
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.setLineDash([]);
-
       ctx.beginPath();
       ctx.arc(x, y, CONFIG.items.magnet.radius, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(${rgb}, 0.2)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (type === 'wall') {
+      ctx.strokeStyle = inNoZone ? '#ff0000' : `rgba(${rgb}, 1)`;
+      ctx.lineWidth = CONFIG.items.wall.thickness;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x - 30, y);
+      ctx.lineTo(x + 30, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (type === 'ice') {
+      ctx.beginPath();
+      ctx.arc(x, y, CONFIG.items.ice.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = inNoZone ? '#ff0000' : 'rgba(100, 200, 255, 0.6)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(100, 200, 255, 0.3)';
+      ctx.font = '14px "Inter", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('\u2744', x, y + 5);
+    } else if (type === 'bomb') {
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.strokeStyle = inNoZone ? '#ff0000' : 'rgba(255, 100, 0, 0.8)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(x, y, CONFIG.items.bomb.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 100, 0, 0.15)';
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -515,7 +806,7 @@ const Renderer = (() => {
     const cost = Drawing.getItemPointCost(type);
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = inNoZone ? '#ff4444' : '#ffcc00';
-    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.font = '10px "Inter", "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(inNoZone ? 'NO PLACE' : `${cost}pt`, x, y - 22);
 
@@ -542,7 +833,6 @@ const Renderer = (() => {
     }
   }
 
-  // Helper to darken a hex color
   function darkenColor(hex, factor) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -556,6 +846,8 @@ const Renderer = (() => {
     Effects.applyShake();
 
     clear();
+    drawGrid();
+    drawAmbientParticles();
     drawDepthZones();
     drawNoDrawZone();
     drawBuckets(viewMode);
@@ -566,6 +858,7 @@ const Renderer = (() => {
     if (trail) drawTrail(trail);
     Effects.update();
     Effects.draw();
+    drawVignette();
 
     Effects.resetShake();
   }
@@ -573,6 +866,8 @@ const Renderer = (() => {
   function renderSimulation(simMarble1, simMarble2, currentRound, viewMode, trail) {
     frameCount++;
     clear();
+    drawGrid();
+    drawAmbientParticles();
     drawDepthZones();
     drawNoDrawZone();
     drawBuckets(viewMode);
@@ -582,6 +877,7 @@ const Renderer = (() => {
     if (trail) drawTrail(trail);
     Effects.update();
     Effects.draw();
+    drawVignette();
   }
 
   return {
