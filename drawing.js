@@ -150,6 +150,7 @@ const Drawing = (() => {
         const cost = calculateInkCost(closest.x1, closest.y1, closest.x2, closest.y2);
         inkRemaining = Math.min(maxInk, inkRemaining + cost);
         Physics.removeLine(closest);
+        Sound.eraseLine();
         if (onInkChanged) onInkChanged(inkRemaining, maxInk);
       }
       return;
@@ -160,7 +161,10 @@ const Drawing = (() => {
 
       // Items cost points, not ink
       const cost = getItemPointCost(selectedItem);
-      if (getPoints() < cost) return;
+      if (getPoints() < cost) {
+        Sound.denied();
+        return;
+      }
 
       if (selectedItem === 'fan') {
         fanPlaceX = x;
@@ -206,12 +210,14 @@ const Drawing = (() => {
       const line = Physics.addLine(startX, startY, truncX, truncY, currentPlayer, currentRound);
       if (line) {
         inkRemaining = 0;
+        Sound.drawLine();
         if (onInkChanged) onInkChanged(inkRemaining, maxInk);
       }
     } else {
       const line = Physics.addLine(startX, startY, endX, endY, currentPlayer, currentRound);
       if (line) {
         inkRemaining -= cost;
+        Sound.drawLine();
         if (onInkChanged) onInkChanged(inkRemaining, maxInk);
       }
     }
@@ -223,6 +229,7 @@ const Drawing = (() => {
 
     Items.placeItem(type, x, y, currentPlayer, currentRound, direction);
     spendPoints(cost);
+    Sound.placeItem();
   }
 
   function distToSegment(px, py, x1, y1, x2, y2) {

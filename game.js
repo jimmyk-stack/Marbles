@@ -3,7 +3,7 @@
 const Game = (() => {
   let state = 'LOBBY';
   let round = 1;
-  let builderPlayer = 1; // which player is builder this round
+  let builderPlayer = 1;
   let p1Score = 0;
   let p2Score = 0;
   let simCount = 3;
@@ -15,8 +15,14 @@ const Game = (() => {
   let lastDropTime = 0;
   let totalDropTime = 0;
 
+  // Marble trail particles during drop
+  let dropTrailTimer = 0;
+
   // Shop purchases queued for next round (ink only)
   let bonusInk = { 1: 0, 2: 0 };
+
+  // Collision event tracking
+  let collisionHandler = null;
 
   function getPlayerScore(player) {
     return player === 1 ? p1Score : p2Score;
@@ -25,7 +31,6 @@ const Game = (() => {
   function deductPlayerScore(player, cost) {
     if (player === 1) p1Score -= cost;
     else p2Score -= cost;
-    // Update HUD scores live
     document.getElementById('hudP1Score').textContent = p1Score;
     document.getElementById('hudP2Score').textContent = p2Score;
   }
@@ -34,22 +39,48 @@ const Game = (() => {
     p1Name = name1;
     p2Name = name2;
 
-    // Initialize systems
     const canvas = document.getElementById('gameCanvas');
     Physics.init();
     Renderer.init(canvas);
     Drawing.init(canvas);
+    Effects.init(canvas);
 
     Drawing.onInkChanged = (current, max) => {
       UI.updateInkBar(current, max);
     };
 
-    // Set up Matter.js beforeUpdate for item forces
+    // Item forces during drop
     Matter.Events.on(Physics.engine, 'beforeUpdate', () => {
       if (dropPhaseActive) {
         Items.applyAllForces();
       }
     });
+
+    // Collision sounds and particles during drop
+    collisionHandler = (event) => {
+      if (!dropPhaseActive) return;
+      for (const pair of event.pairs) {
+        const a = pair.bodyA;
+        const b = pair.bodyB;
+        const isMarble = (l) => l && (l.startsWith('marble'));
+        if (isMarble(a.label) || isMarble(b.label)) {
+          const speed = Math.sqrt(
+            Math.pow(pair.collision.normal.x * (a.velocity?.x || 0), 2) +
+            Math.pow(pair.collision.normal.y * (a.velocity?.y || 0), 2)
+          );
+          if (speed > 1) {
+            Sound.marbleBounce(speed);
+            const cx = (pair.collision.supports?.[0]?.x) || a.position.x;
+            const cy = (pair.collision.supports?.[0]?.y) || a.position.y;
+            Effects.spawnCollisionSpark(cx, cy);
+            if (speed > 4) {
+              Effects.triggerShake(speed * 0.5);
+            }
+          }
+        }
+      }
+    };
+    Matter.Events.on(Physics.engine, 'collisionStart', collisionHandler);
 
     round = 1;
     builderPlayer = 1;
@@ -119,9 +150,7 @@ const Game = (() => {
     simCount--;
     UI.updateSimCount(simCount);
 
-    Simulation.startSimulation('builder', () => {
-      // Simulation complete, render loop handles transition automatically
-    });
+    Simulation.startSimulation('builder', () => {});
   }
 
   function builderReady() {
@@ -145,9 +174,7 @@ const Game = (() => {
 
   function runSaboteurSimulation() {
     Simulation.stopSimulation();
-    Simulation.startSimulation('saboteur', () => {
-      // Simulation complete
-    });
+    Simulation.startSimulation('saboteur', () => {});
   }
 
   function saboteurReady() {
@@ -162,7 +189,9 @@ const Game = (() => {
     stuckTimers = { m1: 0, m2: 0 };
     lastDropTime = performance.now();
     totalDropTime = 0;
+    dropTrailTimer = 0;
 
+    Sound.marbleDrop();
     UI.showGameScreen('drop', builderPlayer, round, p1Score, p2Score);
     Physics.releaseMarbles();
 
@@ -185,21 +214,23 @@ const Game = (() => {
       const v1 = Math.sqrt(m1.velocity.x ** 2 + m1.velocity.y ** 2);
       const v2 = Math.sqrt(m2.velocity.x ** 2 + m2.velocity.y ** 2);
 
+      // Spawn trail particles
+      dropTrailTimer += dt;
+      if (dropTrailTimer > 30) {
+        dropTrailTimer = 0;
+        if (v1 > 1) Effects.spawnTrailParticle(m1.position.x, m1.position.y, '#4488ff');
+        if (v2 > 1) Effects.spawnTrailParticle(m2.position.x, m2.position.y, '#ff4444');
+      }
+
       const settleThreshold = 0.5;
 
-      if (v1 < settleThreshold) {
-        stuckTimers.m1 += dt;
-      } else {
-        stuckTimers.m1 = 0;
-      }
+      if (v1 < settleThreshold) stuckTimers.m1 += dt;
+      else stuckTimers.m1 = 0;
 
-      if (v2 < settleThreshold) {
-        stuckTimers.m2 += dt;
-      } else {
-        stuckTimers.m2 = 0;
-      }
+      if (v2 < settleThreshold) stuckTimers.m2 += dt;
+      else stuckTimers.m2 = 0;
 
-      // Handle stuck marbles — nudge sideways instead of disabling collision
+      // Nudge stuck marbles
       if (stuckTimers.m1 > CONFIG.stuckDetection.timeoutMs && !Scoring.checkMarbleInBucket(m1, 1) && !Scoring.checkMarbleInBucket(m1, 2)) {
         Matter.Body.setVelocity(m1, { x: (Math.random() - 0.5) * 4, y: -2 });
         stuckTimers.m1 = 0;
@@ -237,11 +268,46 @@ const Game = (() => {
     state = 'SCORE_REVEAL';
     stopRenderLoop();
 
-    const result = Scoring.calculateRoundScores();
+    const result = Scoring.calculateRoundScores(p1Name, p2Name);
     p1Score += result.p1Points;
     p2Score += result.p2Points;
 
-    UI.showScoreReveal(p1Score, p2Score, result);
+    // Visual effects for scores
+    const m1 = Physics.marble1;
+    const m2 = Physics.marble2;
+
+    if (result.p1Points > 0) {
+      const b1 = Physics.getBucketBounds(1);
+      Effects.spawnBucketCapture(b1.x + b1.width / 2, b1.y, '#4488ff');
+      Effects.showFloatingText(`+${result.p1Points}`, b1.x + b1.width / 2, b1.y - 20, '#4488ff', 28);
+      Effects.triggerShake(4);
+      Sound.bucketCapture(result.p1Points >= 5);
+    }
+    if (result.p2Points > 0) {
+      const b2 = Physics.getBucketBounds(2);
+      Effects.spawnBucketCapture(b2.x + b2.width / 2, b2.y, '#ff4444');
+      Effects.showFloatingText(`+${result.p2Points}`, b2.x + b2.width / 2, b2.y - 20, '#ff4444', 28);
+      if (result.p1Points === 0) Effects.triggerShake(4);
+      Sound.bucketCapture(result.p2Points >= 5);
+    }
+    if (result.p1Points === 0 && result.p2Points === 0) {
+      Effects.showFloatingText('No Score', CONFIG.canvas.width / 2, CONFIG.canvas.height / 2, '#888888', 24);
+    }
+
+    // Keep rendering effects briefly before showing score screen
+    let effectsTimer = 0;
+    function effectsLoop() {
+      effectsTimer++;
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      Renderer.render(round, 'drop', null);
+      if (effectsTimer < 90 && Effects.hasActiveEffects()) {
+        requestAnimationFrame(effectsLoop);
+      } else {
+        UI.showScoreReveal(p1Score, p2Score, result);
+      }
+    }
+    effectsLoop();
   }
 
   function showShop() {
@@ -262,7 +328,6 @@ const Game = (() => {
     if (player === 1) p1Score -= cost;
     else p2Score -= cost;
 
-    // Shop only sells ink refills
     if (itemType === 'inkSmall') {
       bonusInk[player] += 50;
     } else if (itemType === 'inkLarge') {

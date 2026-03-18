@@ -18,11 +18,11 @@
       <p>The Saboteur watches the simulation, infers hidden edits, and places items to intercept.</p>
     </div>
     <div class="player-inputs">
-      <div class="player-input">
+      <div class="player-input p1">
         <label for="p1name">Player 1 (Blue)</label>
         <input type="text" id="p1name" placeholder="Player 1" maxlength="12">
       </div>
-      <div class="player-input">
+      <div class="player-input p2">
         <label for="p2name">Player 2 (Red)</label>
         <input type="text" id="p2name" placeholder="Player 2" maxlength="12">
       </div>
@@ -35,14 +35,15 @@
     <h2 id="roundTitle">Round 1</h2>
     <div class="role-assignments">
       <div class="role-card p1">
-        <span class="player-name" id="roundP1Name">P1</span>
+        <span class="player-name p1-color" id="roundP1Name">P1</span>
         <span class="role-label" id="roundP1Role">Builder</span>
       </div>
       <div class="role-card p2">
-        <span class="player-name" id="roundP2Name">P2</span>
+        <span class="player-name p2-color" id="roundP2Name">P2</span>
         <span class="role-label" id="roundP2Role">Saboteur</span>
       </div>
     </div>
+    <p id="roundHint" class="subtitle" style="margin-top:8px"></p>
     <button id="roundStartBtn" class="btn-primary">Begin Round</button>
   </div>
 
@@ -52,23 +53,23 @@
     <div id="hud">
       <div class="hud-left">
         <span id="hudP1Name" class="p1-color">P1</span>
-        <span id="hudP1Role" class="role-badge">[Builder]</span>
-        <span>Score: <strong id="hudP1Score">0</strong></span>
+        <span id="hudP1Role" class="role-badge builder">Builder</span>
+        <span class="score-value p1-color" id="hudP1Score">0</span>
       </div>
       <div class="hud-center">
         <span id="hudRound">Round 1</span>
         <span id="hudPhase">Builder Phase</span>
       </div>
       <div class="hud-right">
-        <span>Score: <strong id="hudP2Score">0</strong></span>
-        <span id="hudP2Role" class="role-badge">[Saboteur]</span>
+        <span class="score-value p2-color" id="hudP2Score">0</span>
+        <span id="hudP2Role" class="role-badge saboteur">Saboteur</span>
         <span id="hudP2Name" class="p2-color">P2</span>
       </div>
     </div>
 
     <!-- Ink Bar -->
     <div id="inkBar">
-      <span id="inkLabel">Ink:</span>
+      <span id="inkLabel">Ink</span>
       <div class="ink-track">
         <div class="ink-fill" id="inkFill"></div>
       </div>
@@ -80,26 +81,31 @@
 
     <!-- Builder Controls -->
     <div id="builderControls" class="controls-panel">
-      <button id="simBtn" class="btn-secondary">Simulate (<span id="simCount">3</span> left)</button>
-      <button id="eraseModeBtn" class="btn-secondary">Erase Mode</button>
+      <button id="simBtn" class="btn-secondary">Simulate (<span id="simCount">3</span>)<span class="key-hint">S</span></button>
+      <button id="eraseModeBtn" class="btn-secondary">Erase<span class="key-hint">E</span></button>
+      <div class="controls-divider"></div>
       <div class="item-shop">
-        <button class="item-btn" data-item="fan">Fan (<span class="item-cost">4</span>pt)</button>
-        <button class="item-btn" data-item="bumper">Bumper (<span class="item-cost">4</span>pt)</button>
-        <button class="item-btn" data-item="magnet">Magnet (<span class="item-cost">6</span>pt)</button>
+        <button class="item-btn" data-item="fan"><span class="item-icon">~</span>Fan <span class="item-cost">4</span>pt<span class="key-hint">1</span></button>
+        <button class="item-btn" data-item="bumper"><span class="item-icon">O</span>Bumper <span class="item-cost">4</span>pt<span class="key-hint">2</span></button>
+        <button class="item-btn" data-item="magnet"><span class="item-icon">*</span>Magnet <span class="item-cost">6</span>pt<span class="key-hint">3</span></button>
       </div>
-      <button id="readyBtn" class="btn-primary">Ready</button>
+      <div class="controls-divider"></div>
+      <button id="readyBtn" class="btn-primary" style="margin-left:auto; padding:8px 20px; font-size:14px;">Ready<span class="key-hint" style="background:rgba(255,255,255,0.15)">Enter</span></button>
     </div>
 
     <!-- Saboteur Controls -->
     <div id="saboteurControls" class="controls-panel" style="display:none">
+      <button id="sabSimBtn" class="btn-secondary">Watch Sim<span class="key-hint">S</span></button>
+      <button id="sabDrawBtn" class="btn-secondary">Draw<span class="key-hint">D</span></button>
+      <button id="eraseModeBtn2" class="btn-secondary">Erase<span class="key-hint">E</span></button>
+      <div class="controls-divider"></div>
       <div class="item-shop">
-        <button class="item-btn" data-item="fan">Fan (<span class="item-cost">2</span>pt)</button>
-        <button class="item-btn" data-item="bumper">Bumper (<span class="item-cost">2</span>pt)</button>
-        <button class="item-btn" data-item="magnet">Magnet (<span class="item-cost">3</span>pt)</button>
+        <button class="item-btn" data-item="fan"><span class="item-icon">~</span>Fan <span class="item-cost">2</span>pt<span class="key-hint">1</span></button>
+        <button class="item-btn" data-item="bumper"><span class="item-icon">O</span>Bumper <span class="item-cost">2</span>pt<span class="key-hint">2</span></button>
+        <button class="item-btn" data-item="magnet"><span class="item-icon">*</span>Magnet <span class="item-cost">3</span>pt<span class="key-hint">3</span></button>
       </div>
-      <button id="sabSimBtn" class="btn-secondary">Watch Simulation</button>
-      <button id="sabDrawBtn" class="btn-secondary">Draw Lines</button>
-      <button id="sabReadyBtn" class="btn-primary">Ready</button>
+      <div class="controls-divider"></div>
+      <button id="sabReadyBtn" class="btn-primary" style="margin-left:auto; padding:8px 20px; font-size:14px;">Ready<span class="key-hint" style="background:rgba(255,255,255,0.15)">Enter</span></button>
     </div>
 
     <!-- Drop Phase overlay -->
@@ -122,15 +128,18 @@
   <!-- SHOP SCREEN -->
   <div id="shopScreen" class="screen overlay" style="display:none">
     <h2>Shop</h2>
+    <p class="subtitle" style="margin-bottom:8px">Spend points on ink refills for next round</p>
     <div class="shop-panels">
       <div class="shop-panel p1-panel">
         <h3 id="shopP1Name">P1</h3>
-        <p>Points: <strong id="shopP1Points">0</strong></p>
+        <p class="shop-points">Points: <strong id="shopP1Points">0</strong></p>
+        <span id="shopP1RoleTag" class="shop-role-tag builder">Next: Builder</span>
         <div id="shopP1Items" class="shop-items"></div>
       </div>
       <div class="shop-panel p2-panel">
         <h3 id="shopP2Name">P2</h3>
-        <p>Points: <strong id="shopP2Points">0</strong></p>
+        <p class="shop-points">Points: <strong id="shopP2Points">0</strong></p>
+        <span id="shopP2RoleTag" class="shop-role-tag saboteur">Next: Saboteur</span>
         <div id="shopP2Items" class="shop-items"></div>
       </div>
     </div>
@@ -140,6 +149,7 @@
   <!-- GAME OVER -->
   <div id="gameOver" class="screen overlay" style="display:none">
     <h2 id="winnerText">Player 1 Wins!</h2>
+    <canvas id="gameOverCanvas" width="400" height="200"></canvas>
     <div class="final-scores">
       <span id="finalP1"></span>
       <span id="finalP2"></span>
@@ -147,15 +157,24 @@
     <button id="playAgainBtn" class="btn-primary">Play Again</button>
   </div>
 
-  <!-- Fan direction picker (shown on fan placement) -->
-  <div id="fanDirectionPicker" style="display:none">
-    <canvas id="fanDirCanvas" width="100" height="100"></canvas>
+  <!-- Tutorial overlay (hidden by default) -->
+  <div id="tutorialOverlay" class="tutorial-overlay" style="display:none">
+    <div class="tutorial-card">
+      <h3 id="tutorialTitle">Welcome to Sabotage!</h3>
+      <div id="tutorialContent"></div>
+      <button id="tutorialBtn" class="btn-primary" style="margin-top:16px">Got it!</button>
+    </div>
   </div>
+
+  <!-- Mute button -->
+  <button id="muteBtn" title="Toggle sound">&#9834;</button>
 
   <script src="constants.js"></script>
   <script src="physics.js"></script>
   <script src="items.js"></script>
   <script src="drawing.js"></script>
+  <script src="effects.js"></script>
+  <script src="sound.js"></script>
   <script src="renderer.js"></script>
   <script src="simulation.js"></script>
   <script src="scoring.js"></script>
