@@ -155,7 +155,8 @@ const Effects = (() => {
   }
 
   function resetShake() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   // --- Confetti ---
