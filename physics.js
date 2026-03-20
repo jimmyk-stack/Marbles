@@ -11,9 +11,9 @@ const Physics = (() => {
   let itemBodies = []; // managed by Items module
 
   function init() {
-    engine = Engine.create({
-      gravity: { x: 0, y: CONFIG.gravity }
-    });
+    engine = Engine.create();
+    engine.gravity.x = 0;
+    engine.gravity.y = CONFIG.gravity;
     world = engine.world;
 
     createWalls();
@@ -69,6 +69,10 @@ const Physics = (() => {
     const h = CONFIG.canvas.height;
     const r = CONFIG.marbles.radius;
 
+    // Create as dynamic first so Matter.js saves _original properties,
+    // then set static. This way setStatic(false) later can restore
+    // correct mass/density (bodies created with isStatic:true never
+    // save _original, so toggling to dynamic leaves mass=Infinity).
     marble1 = Bodies.circle(
       w * CONFIG.marbles.p1Start.x,
       h * CONFIG.marbles.p1Start.y,
@@ -76,10 +80,11 @@ const Physics = (() => {
       {
         restitution: CONFIG.marbles.restitution,
         friction: CONFIG.marbles.friction,
+        frictionAir: 0.01,
         label: 'marble-p1',
-        isStatic: true,
       }
     );
+    Body.setStatic(marble1, true);
 
     marble2 = Bodies.circle(
       w * CONFIG.marbles.p2Start.x,
@@ -88,10 +93,11 @@ const Physics = (() => {
       {
         restitution: CONFIG.marbles.restitution,
         friction: CONFIG.marbles.friction,
+        frictionAir: 0.01,
         label: 'marble-p2',
-        isStatic: true,
       }
     );
+    Body.setStatic(marble2, true);
 
     World.add(world, [marble1, marble2]);
   }
@@ -190,9 +196,9 @@ const Physics = (() => {
 
   // Clone world state for simulation preview
   function cloneForSimulation() {
-    const simEngine = Engine.create({
-      gravity: { x: 0, y: CONFIG.gravity }
-    });
+    const simEngine = Engine.create();
+    simEngine.gravity.x = 0;
+    simEngine.gravity.y = CONFIG.gravity;
     const simWorld = simEngine.world;
 
     // Add walls
@@ -244,13 +250,13 @@ const Physics = (() => {
       w * CONFIG.marbles.p1Start.x,
       h * CONFIG.marbles.p1Start.y,
       CONFIG.marbles.radius,
-      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, label: 'marble-p1' }
+      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, frictionAir: 0.01, label: 'marble-p1' }
     );
     const simMarble2 = Bodies.circle(
       w * CONFIG.marbles.p2Start.x,
       h * CONFIG.marbles.p2Start.y,
       CONFIG.marbles.radius,
-      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, label: 'marble-p2' }
+      { restitution: CONFIG.marbles.restitution, friction: CONFIG.marbles.friction, frictionAir: 0.01, label: 'marble-p2' }
     );
 
     World.add(simWorld, [simMarble1, simMarble2]);

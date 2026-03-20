@@ -14,7 +14,9 @@ const Scoring = (() => {
     return inBounds && vel < CONFIG.bucket.captureVelocityThreshold;
   }
 
-  function calculateRoundScores() {
+  function calculateRoundScores(p1Name, p2Name) {
+    const n1 = p1Name || 'P1';
+    const n2 = p2Name || 'P2';
     const m1 = Physics.marble1;
     const m2 = Physics.marble2;
 
@@ -27,40 +29,44 @@ const Scoring = (() => {
     let p2Points = 0;
     const events = [];
 
-    // Check jackpot first
+    // Check jackpots first
     if (m1inP1 && m2inP1) {
       p1Points = CONFIG.scoring.jackpot;
-      events.push('Both marbles in P1 bucket! Jackpot!');
+      events.push(`JACKPOT! Both marbles in ${n1}'s bucket! (+${CONFIG.scoring.jackpot})`);
     } else {
       if (m1inP1) {
         p1Points += CONFIG.scoring.ownMarbleOwnBucket;
-        events.push('P1 marble landed in P1 bucket (+2)');
+        events.push(`${n1}'s marble landed in ${n1}'s bucket (+${CONFIG.scoring.ownMarbleOwnBucket})`);
       }
       if (m2inP1) {
         p1Points += CONFIG.scoring.opponentMarbleOwnBucket;
-        events.push('P2 marble landed in P1 bucket (+3 to P1)');
+        events.push(`${n2}'s marble landed in ${n1}'s bucket (+${CONFIG.scoring.opponentMarbleOwnBucket} to ${n1})`);
       }
     }
 
     if (m1inP2 && m2inP2) {
       p2Points = CONFIG.scoring.jackpot;
-      events.push('Both marbles in P2 bucket! Jackpot!');
+      events.push(`JACKPOT! Both marbles in ${n2}'s bucket! (+${CONFIG.scoring.jackpot})`);
     } else {
       if (m2inP2) {
         p2Points += CONFIG.scoring.ownMarbleOwnBucket;
-        events.push('P2 marble landed in P2 bucket (+2)');
+        events.push(`${n2}'s marble landed in ${n2}'s bucket (+${CONFIG.scoring.ownMarbleOwnBucket})`);
       }
       if (m1inP2) {
         p2Points += CONFIG.scoring.opponentMarbleOwnBucket;
-        events.push('P1 marble landed in P2 bucket (+3 to P2)');
+        events.push(`${n1}'s marble landed in ${n2}'s bucket (+${CONFIG.scoring.opponentMarbleOwnBucket} to ${n2})`);
       }
     }
 
     if (!m1inP1 && !m1inP2) {
-      events.push('P1 marble missed both buckets');
+      events.push(`${n1}'s marble missed both buckets`);
     }
     if (!m2inP1 && !m2inP2) {
-      events.push('P2 marble missed both buckets');
+      events.push(`${n2}'s marble missed both buckets`);
+    }
+
+    if (events.length === 0) {
+      events.push('No marbles captured this round');
     }
 
     return { p1Points, p2Points, events };
