@@ -69,6 +69,10 @@ const Physics = (() => {
     const h = CONFIG.canvas.height;
     const r = CONFIG.marbles.radius;
 
+    // Create as dynamic first so Matter.js saves _original properties,
+    // then set static. This way setStatic(false) later can restore
+    // correct mass/density (bodies created with isStatic:true never
+    // save _original, so toggling to dynamic leaves mass=Infinity).
     marble1 = Bodies.circle(
       w * CONFIG.marbles.p1Start.x,
       h * CONFIG.marbles.p1Start.y,
@@ -78,9 +82,9 @@ const Physics = (() => {
         friction: CONFIG.marbles.friction,
         frictionAir: 0.01,
         label: 'marble-p1',
-        isStatic: true,
       }
     );
+    Body.setStatic(marble1, true);
 
     marble2 = Bodies.circle(
       w * CONFIG.marbles.p2Start.x,
@@ -91,9 +95,9 @@ const Physics = (() => {
         friction: CONFIG.marbles.friction,
         frictionAir: 0.01,
         label: 'marble-p2',
-        isStatic: true,
       }
     );
+    Body.setStatic(marble2, true);
 
     World.add(world, [marble1, marble2]);
   }
