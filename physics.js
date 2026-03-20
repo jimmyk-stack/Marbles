@@ -129,8 +129,26 @@ const Physics = (() => {
   }
 
   function releaseMarbles() {
+    console.log('[DEBUG] Before release:', {
+      m1_static: marble1.isStatic,
+      m1_mass: marble1.mass,
+      m1_pos: { ...marble1.position },
+      m1_original: marble1._original,
+      m2_static: marble2.isStatic,
+      m2_mass: marble2.mass,
+      m2_original: marble2._original,
+      gravity: { ...engine.gravity },
+    });
     Body.setStatic(marble1, false);
     Body.setStatic(marble2, false);
+    console.log('[DEBUG] After release:', {
+      m1_static: marble1.isStatic,
+      m1_mass: marble1.mass,
+      m1_inverseMass: marble1.inverseMass,
+      m2_static: marble2.isStatic,
+      m2_mass: marble2.mass,
+      m2_inverseMass: marble2.inverseMass,
+    });
   }
 
   function addLine(x1, y1, x2, y2, owner, round) {
