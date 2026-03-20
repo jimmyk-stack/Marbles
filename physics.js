@@ -106,6 +106,10 @@ const Physics = (() => {
     const w = CONFIG.canvas.width;
     const h = CONFIG.canvas.height;
 
+    // Must set dynamic first so setStatic(true) saves correct _original.
+    // If we call setStatic(true) on an already-static body, it overwrites
+    // _original with mass=Infinity, breaking the next releaseMarbles().
+    Body.setStatic(marble1, false);
     Body.setPosition(marble1, {
       x: w * CONFIG.marbles.p1Start.x,
       y: h * CONFIG.marbles.p1Start.y
@@ -114,6 +118,7 @@ const Physics = (() => {
     Body.setAngularVelocity(marble1, 0);
     Body.setStatic(marble1, true);
 
+    Body.setStatic(marble2, false);
     Body.setPosition(marble2, {
       x: w * CONFIG.marbles.p2Start.x,
       y: h * CONFIG.marbles.p2Start.y
