@@ -129,26 +129,21 @@ const Physics = (() => {
   }
 
   function releaseMarbles() {
-    console.log('[DEBUG] Before release:', {
-      m1_static: marble1.isStatic,
-      m1_mass: marble1.mass,
-      m1_pos: { ...marble1.position },
-      m1_original: marble1._original,
-      m2_static: marble2.isStatic,
-      m2_mass: marble2.mass,
-      m2_original: marble2._original,
-      gravity: { ...engine.gravity },
-    });
     Body.setStatic(marble1, false);
     Body.setStatic(marble2, false);
-    console.log('[DEBUG] After release:', {
-      m1_static: marble1.isStatic,
-      m1_mass: marble1.mass,
-      m1_inverseMass: marble1.inverseMass,
-      m2_static: marble2.isStatic,
-      m2_mass: marble2.mass,
-      m2_inverseMass: marble2.inverseMass,
-    });
+
+    // Matter.js setStatic(false) relies on _original to restore mass,
+    // but this is fragile and can leave mass=Infinity. Force correct values.
+    const r = CONFIG.marbles.radius;
+    const density = 0.001; // Matter.js default density
+    const area = Math.PI * r * r;
+    const mass = density * area;
+    const inertia = (mass * r * r) / 2;
+
+    Body.setMass(marble1, mass);
+    Body.setInertia(marble1, inertia);
+    Body.setMass(marble2, mass);
+    Body.setInertia(marble2, inertia);
   }
 
   function addLine(x1, y1, x2, y2, owner, round) {

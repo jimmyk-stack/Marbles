@@ -434,18 +434,6 @@ const Game = (() => {
       const m1 = Physics.marble1;
       const m2 = Physics.marble2;
 
-      // Debug: log first 5 frames
-      if (totalDropTime < 100) {
-        console.log('[DROP]', {
-          time: Math.round(totalDropTime),
-          m1_pos: { x: Math.round(m1.position.x), y: Math.round(m1.position.y) },
-          m1_vel: { x: m1.velocity.x.toFixed(2), y: m1.velocity.y.toFixed(2) },
-          m1_mass: m1.mass,
-          m1_static: m1.isStatic,
-          m2_pos: { x: Math.round(m2.position.x), y: Math.round(m2.position.y) },
-        });
-      }
-
       const v1 = Math.sqrt(m1.velocity.x ** 2 + m1.velocity.y ** 2);
       const v2 = Math.sqrt(m2.velocity.x ** 2 + m2.velocity.y ** 2);
 
